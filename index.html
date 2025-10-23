@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simplest Oly Program</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for a clean, spreadsheet-like appearance */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+        }
+        .header-cell {
+            background-color: #3b82f6; /* Tailwind blue-500 */
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 0.5rem;
+            text-align: center;
+        }
+        .data-row td {
+            padding: 0.5rem 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.875rem; /* sm text */
+            cursor: pointer; /* Indicate calculated weight is clickable */
+        }
+        .week-header {
+            background-color: #2563eb; /* Tailwind blue-600 */
+            color: white;
+            font-weight: 700;
+            text-align: center;
+            padding: 0.5rem;
+            position: sticky;
+            top: 0; /* Sticky header for scrolling */
+            z-index: 10;
+        }
+        .day-label {
+            background-color: #bfdbfe; /* Tailwind blue-200 */
+            font-weight: 600;
+            text-align: center;
+        }
+        .input-card {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+        }
+        /* Custom coloring based on lift type for visual clarity */
+        .snatch-lift { color: #16a34a; /* Green-600 */ }
+        .cj-lift { color: #dc2626; /* Red-600 */ }
+        .squat-lift { color: #4f46e5; /* Indigo-600 */ }
+        
+        /* Plate Calculator Modal Styling */
+        .plate-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            backdrop-filter: blur(2px);
+        }
+        .plate-box {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            max-width: 90%;
+            width: 380px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+        }
+        .plate-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 0.75rem;
+            margin: 0.25rem;
+            border-radius: 9999px; /* full round */
+            font-weight: 700;
+            color: white;
+            font-size: 0.875rem;
+        }
+
+        /* Plate Colors (Standard IWF/Gym Colors) */
+        .plate-25 { background-color: #008744; /* Green */ }
+        .plate-20 { background-color: #0057e7; /* Blue */ }
+        .plate-15 { background-color: #ffc400; /* Yellow */ }
+        .plate-10 { background-color: #da291c; /* Red */ }
+        .plate-5 { background-color: #ffffff; color: #374151; border: 2px solid #374151; /* White/Gray */ }
+        .plate-2_5 { background-color: #000000; /* Black */ }
+        .plate-1_5 { background-color: #1a75ff; /* Light Blue */ }
+        .plate-1_0 { background-color: #999999; /* Grey */ }
+        .plate-0_5 { background-color: #cccccc; /* Light Grey */ }
+
+        /* LBS Colors */
+        .plate-45 { background-color: #da291c; /* Red */ }
+        .plate-35 { background-color: #008744; /* Green */ }
+        .plate-25_lbs { background-color: #ffc400; /* Yellow */ }
+        .plate-10_lbs { background-color: #0057e7; /* Blue */ }
+        .plate-5_lbs { background-color: #ffffff; color: #374151; border: 2px solid #374151; }
+        .plate-2_5_lbs { background-color: #000000; /* Black */ }
+        .plate-1_25_lbs { background-color: #999999; /* Grey */ }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <script>
+        // --- DATA STRUCTURE FOR THE PROGRAM ---
+        const PROGRAM_DATA = [
+            // Week 1
+            { week: 1, day: 1, lift: "Snatch", setsReps: "5 x 3", percent: 0.70, source: "snatchMax" },
+            { week: 1, day: 1, lift: "Snatch Pull", setsReps: "3 x 3", percent: 1.05, source: "snatchMax" },
+            { week: 1, day: 1, lift: "Front Squat", setsReps: "5 x 3", percent: 0.75, source: "frontSquatMax" },
+
+            { week: 1, day: 2, lift: "Jerk", setsReps: "5 x 3", percent: 0.70, source: "cjMax" },
+            { week: 1, day: 2, lift: "Push Press", setsReps: "3 x 3", percent: 0.60, source: "cjMax" },
+            { week: 1, day: 2, lift: "Overhead Squat (OHS)", setsReps: "3 x 5", percent: 0.80, source: "snatchMax" },
+
+            { week: 1, day: 3, lift: "Clean & Jerk (C&J)", setsReps: "5 x 3", percent: 0.70, source: "cjMax" },
+            { week: 1, day: 3, lift: "Clean Pull", setsReps: "3 x 3", percent: 1.05, source: "cjMax" },
+            { week: 1, day: 3, lift: "Back Squat", setsReps: "5 x 5", percent: 0.80, source: "backSquatMax" },
+
+            // Week 2
+            { week: 2, day: 1, lift: "Snatch", setsReps: "5 x 2", percent: 0.75, source: "snatchMax" },
+            { week: 2, day: 1, lift: "Snatch Pull", setsReps: "3 x 2", percent: 1.10, source: "snatchMax" },
+            { week: 2, day: 1, lift: "Front Squat", setsReps: "3 x 3", percent: 0.80, source: "frontSquatMax" },
+
+            { week: 2, day: 2, lift: "Jerk", setsReps: "5 x 2", percent: 0.75, source: "cjMax" },
+            { week: 2, day: 2, lift: "Push Press", setsReps: "3 x 3", percent: 0.65, source: "cjMax" },
+            { week: 2, day: 2, lift: "Overhead Squat (OHS)", setsReps: "3 x 3", percent: 0.85, source: "snatchMax" },
+
+            { week: 2, day: 3, lift: "Clean & Jerk (C&J)", setsReps: "5 x 2", percent: 0.75, source: "cjMax" },
+            { week: 2, day: 3, lift: "Clean Pull", setsReps: "3 x 2", percent: 1.10, source: "cjMax" },
+            { week: 2, day: 3, lift: "Back Squat", setsReps: "3 x 5", percent: 0.85, source: "backSquatMax" },
+
+            // Week 3
+            { week: 3, day: 1, lift: "Snatch", setsReps: "5 x 1", percent: 0.80, source: "snatchMax" },
+            { week: 3, day: 1, lift: "Snatch Pull", setsReps: "3 x 1", percent: 1.15, source: "snatchMax" },
+            { week: 3, day: 1, lift: "Front Squat", setsReps: "3 x 2", percent: 0.85, source: "frontSquatMax" },
+
+            { week: 3, day: 2, lift: "Jerk", setsReps: "5 x 1", percent: 0.80, source: "cjMax" },
+            { week: 3, day: 2, lift: "Push Press", setsReps: "3 x 2", percent: 0.70, source: "cjMax" },
+            { week: 3, day: 2, lift: "Overhead Squat (OHS)", setsReps: "3 x 2", percent: 0.90, source: "snatchMax" },
+
+            { week: 3, day: 3, lift: "Clean & Jerk (C&J)", setsReps: "5 x 1", percent: 0.80, source: "cjMax" },
+            { week: 3, day: 3, lift: "Clean Pull", setsReps: "3 x 1", percent: 1.15, source: "cjMax" },
+            { week: 3, day: 3, lift: "Back Squat", setsReps: "3 x 3", percent: 0.90, source: "backSquatMax" },
+
+            // Week 4 (Test/Deload) - Note: Final lifts are "up to" and are displayed as targets
+            { week: 4, day: 1, lift: "Snatch", setsReps: "Heavy Single", percent: 0.90, source: "snatchMax", note: "Target weight, load by feel" },
+            { week: 4, day: 1, lift: "Snatch Pull", setsReps: "3 x 3", percent: 1.00, source: "snatchMax" },
+            { week: 4, day: 1, lift: "Front Squat", setsReps: "3 x 1", percent: 0.90, source: "frontSquatMax" },
+
+            { week: 4, day: 2, lift: "Jerk", setsReps: "Heavy Single", percent: 0.90, source: "cjMax", note: "Target weight, load by feel" },
+            { week: 4, day: 2, lift: "Push Press", setsReps: "3 x 3", percent: 0.60, source: "cjMax" },
+            { week: 4, day: 2, lift: "Overhead Squat (OHS)", setsReps: "3 x 5", percent: 0.70, source: "snatchMax" },
+
+            { week: 4, day: 3, lift: "Clean & Jerk (C&J)", setsReps: "Heavy Single", percent: 0.90, source: "cjMax", note: "Target weight, load by feel" },
+            { week: 4, day: 3, lift: "Clean Pull", setsReps: "3 x 3", percent: 1.00, source: "cjMax" },
+            { week: 4, day: 3, lift: "Back Squat", setsReps: "3 x 1", percent: 0.95, source: "backSquatMax" },
+        ];
+
+        // --- PLATE DATA & CONFIGURATION ---
+        // Fixed standard bar weights
+        const FIXED_BAR_WEIGHTS = { 'kg': 20, 'lbs': 45 };
+        
+        const PLATE_INVENTORY = {
+            // Weights are listed descending for easier greedy calculation
+            'kg': [25, 20, 15, 10, 5, 2.5, 2, 1.5, 1, 0.5],
+            'lbs': [45, 35, 25, 10, 5, 2.5, 1.25]
+        };
+        const MAX_STORAGE_KEY = 'olyProgramMaxes';
+
+        // --- DATA PERSISTENCE FUNCTIONS (LOCAL STORAGE) ---
+        function save1RMs() {
+            const maxes = get1RMs();
+            // Only saving the unit choice and 1RMs
+            maxes.unit = document.getElementById('unit-select').value;
+            
+            try {
+                localStorage.setItem(MAX_STORAGE_KEY, JSON.stringify(maxes));
+                const statusElement = document.getElementById('saveStatus');
+                statusElement.textContent = '1RMs and settings saved automatically!';
+                statusElement.classList.remove('opacity-0');
+                setTimeout(() => { statusElement.classList.add('opacity-0'); }, 2000);
+            } catch (e) {
+                console.error('Error saving 1RMs to local storage:', e);
+            }
+        }
+
+        function load1RMs() {
+            const savedData = localStorage.getItem(MAX_STORAGE_KEY);
+            // DEFAULT TO LBS
+            let defaultUnit = 'lbs';
+
+            if (savedData) {
+                try {
+                    const maxes = JSON.parse(savedData);
+                    
+                    // Load unit (defaults to 'lbs' if none saved)
+                    defaultUnit = maxes.unit || 'lbs';
+                    
+                    document.getElementById('unit-select').value = defaultUnit;
+                    document.getElementById('snatchMax').value = maxes.snatchMax || '';
+                    document.getElementById('cjMax').value = maxes.cjMax || '';
+                    document.getElementById('backSquatMax').value = maxes.backSquatMax || '';
+                    document.getElementById('frontSquatMax').value = maxes.frontSquatMax || '';
+                    
+                } catch (e) {
+                    console.error('Error parsing saved 1RMs:', e);
+                }
+            } else {
+                // Set default unit if no data is found
+                document.getElementById('unit-select').value = defaultUnit;
+            }
+        }
+
+        // --- UI UTILITY FUNCTIONS ---
+        function handleUnitChange(e) {
+            // Save the new unit setting and recalculate all weights immediately
+            save1RMs();
+            calculateWeights();
+        }
+
+        function roundToNearest5(value) {
+            if (isNaN(value) || value < 0) return 0;
+            return Math.round(value / 5) * 5;
+        }
+
+        function getColorClass(source) {
+            switch (source) {
+                case 'snatchMax':
+                    return 'snatch-lift';
+                case 'cjMax':
+                    return 'cj-lift';
+                case 'backSquatMax':
+                case 'frontSquatMax':
+                    return 'squat-lift';
+                default:
+                    return '';
+            }
+        }
+
+        function get1RMs() {
+            // Returns only the Max values for calculation purposes
+            return {
+                snatchMax: parseFloat(document.getElementById('snatchMax').value) || 0,
+                cjMax: parseFloat(document.getElementById('cjMax').value) || 0,
+                backSquatMax: parseFloat(document.getElementById('backSquatMax').value) || 0,
+                frontSquatMax: parseFloat(document.getElementById('frontSquatMax').value) || 0,
+            };
+        }
+        
+        // --- PLATE CALCULATOR LOGIC ---
+
+        /**
+         * Calculates the plate combination for one side of the bar.
+         */
+        function calculatePlates(totalWeight, unit) {
+            // Use the fixed bar weight based on the selected unit
+            const barWeight = FIXED_BAR_WEIGHTS[unit]; 
+            const inventory = PLATE_INVENTORY[unit];
+            
+            if (totalWeight <= barWeight) {
+                return { plates: [], bar: barWeight, total: totalWeight, error: `Weight must be greater than ${barWeight}${unit}.` };
+            }
+
+            let platesNeeded = (totalWeight - barWeight) / 2;
+            let resultPlates = {};
+
+            // Use a small epsilon for floating point comparison robustness
+            const epsilon = 0.001; 
+
+            for (const plate of inventory) {
+                // If the plate is smaller than or equal to the remaining weight
+                if (platesNeeded >= (plate - epsilon)) {
+                    // Calculate how many times this plate can fit
+                    const count = Math.floor(platesNeeded / plate);
+                    if (count > 0) {
+                        resultPlates[plate] = count;
+                        platesNeeded -= count * plate;
+                    }
+                }
+            }
+            
+            // Final check on remaining weight (should be close to zero)
+            const loadedWeight = barWeight + 2 * Object.entries(resultPlates).reduce((sum, [p, c]) => sum + parseFloat(p) * c, 0);
+            
+            if (Math.abs(totalWeight - loadedWeight) > 0.01) {
+                return { plates: [], bar: barWeight, total: totalWeight, error: `Cannot load ${totalWeight}${unit} exactly with standard plates and ${barWeight}${unit} bar.` };
+            }
+
+            return { plates: resultPlates, bar: barWeight, total: totalWeight, error: null };
+        }
+
+        /**
+         * Displays the plate calculation result in a modal.
+         */
+        function showPlateModal(weightString) {
+            // weightString format: "100 [kg/lbs]"
+            const parts = weightString.split(' ');
+            const totalWeight = parseFloat(parts[0]);
+            const unit = document.getElementById('unit-select').value;
+            const barWeight = FIXED_BAR_WEIGHTS[unit]; // Use fixed bar weight
+
+            const modal = document.getElementById('plateCalculatorModal');
+            const resultDiv = document.getElementById('plateResult');
+            
+            if (totalWeight === 0) {
+                resultDiv.innerHTML = `<p class="text-gray-500 text-center">Cannot calculate plates for '---' weight.</p>`;
+                modal.classList.remove('hidden');
+                return;
+            }
+
+            const calculation = calculatePlates(totalWeight, unit);
+            let html = '';
+
+            if (calculation.error) {
+                html = `<p class="text-red-500 font-medium text-center">${calculation.error}</p>`;
+            } else {
+                html += `<div class="text-lg font-bold text-center mb-4 text-blue-800">Plates Per Side</div>`;
+                html += `<div class="text-2xl font-extrabold text-center mb-4">${totalWeight}${unit}</div>`;
+                html += `<div class="flex flex-wrap justify-center items-center my-4 p-4 border rounded-lg bg-gray-50 min-h-[50px]">`;
+                
+                const plateEntries = Object.entries(calculation.plates).sort((a, b) => parseFloat(b[0]) - parseFloat(a[0]));
+
+                if (plateEntries.length === 0) {
+                     html += `<p class="text-gray-500">Only the ${barWeight}${unit} bar is needed.</p>`;
+                } else {
+                    for (const [plateWeight, count] of plateEntries) {
+                        const plateDisplay = unit === 'kg' ? plateWeight : plateWeight.replace('.', '_').replace('.', '_') + '_lbs';
+                        html += `
+                            <div class="flex items-center m-1">
+                                <span class="plate-chip plate-${plateDisplay.replace('.', '_')}" style="min-width: 45px;">
+                                    ${plateWeight}${unit}
+                                </span>
+                                <span class="text-gray-600 ml-1">x${count}</span>
+                            </div>
+                        `;
+                    }
+                }
+                html += `</div>`;
+                html += `<div class="text-sm text-gray-600 text-center border-t pt-2 mt-2">
+                            <span class="font-bold text-blue-700">Barbell: ${barWeight}${unit} (Fixed)</span>
+                         </div>`;
+            }
+
+            document.getElementById('plateModalTitle').textContent = `Load Calculation`;
+            resultDiv.innerHTML = html;
+            modal.classList.remove('hidden');
+        }
+        
+        function closeModal() {
+            document.getElementById('plateCalculatorModal').classList.add('hidden');
+        }
+
+        // --- Main rendering logic ---
+
+        function calculateWeights() {
+            const maxes = get1RMs();
+            const programTableBody = document.getElementById('programTableBody');
+
+            programTableBody.innerHTML = ''; // Clear previous content
+
+            let lastWeek = 0;
+            let lastDay = 0;
+
+            PROGRAM_DATA.forEach((item, index) => {
+                const max = maxes[item.source];
+                let calculatedWeight = roundToNearest5(max * item.percent);
+
+                // Start new week block
+                if (item.week !== lastWeek) {
+                    const weekRow = programTableBody.insertRow();
+                    weekRow.classList.add('week-header');
+                    const weekCell = weekRow.insertCell(0);
+                    weekCell.colSpan = 6;
+                    weekCell.textContent = `WEEK ${item.week}: ${item.week === 4 ? 'TEST / DELOAD' : item.week === 1 ? 'FOUNDATION (5x3)' : item.week === 2 ? 'BUILD (5x2)' : 'PEAK (5x1)'}`;
+                    lastWeek = item.week;
+                    lastDay = 0;
+                }
+
+                const row = programTableBody.insertRow();
+                row.classList.add('data-row', 'hover:bg-blue-50');
+
+                // Day column (only show if it's a new day within the week)
+                const dayCell = row.insertCell(0);
+                if (item.day !== lastDay) {
+                    dayCell.textContent = `Day ${item.day}`;
+                    dayCell.classList.add('day-label');
+                    lastDay = item.day;
+                }
+
+                // Lift Name
+                const liftCell = row.insertCell(1);
+                liftCell.textContent = item.lift;
+                liftCell.classList.add('font-semibold', getColorClass(item.source));
+
+                // Sets x Reps
+                row.insertCell(2).textContent = item.setsReps;
+
+                // Percentage
+                row.insertCell(3).textContent = `${(item.percent * 100).toFixed(0)}%`;
+
+                // 1RM Source
+                row.insertCell(4).textContent = item.source.replace('Max', ' 1RM').replace('snatch', 'Snatch').replace('cj', 'C&J').replace('backSquat', 'Back Squat').replace('frontSquat', 'Front Squat');
+
+                // Calculated Weight
+                const weightCell = row.insertCell(5);
+                const weightString = calculatedWeight > 0 ? `${calculatedWeight} [kg/lbs]` : '---';
+                
+                weightCell.textContent = weightString;
+                weightCell.classList.add('font-extrabold', 'text-lg', 'text-blue-900');
+                if (item.note) {
+                    weightCell.title = item.note;
+                }
+                
+                // Add click handler to trigger the Plate Calculator
+                if (calculatedWeight > 0) {
+                    weightCell.setAttribute('onclick', `showPlateModal('${weightString}')`);
+                }
+            });
+
+            // Update unit hint
+            const unit = document.getElementById('unit-select').value;
+            document.querySelectorAll('.data-row .font-extrabold').forEach(cell => {
+                const text = cell.textContent;
+                cell.textContent = text.replace(/\[kg\/lbs\]/g, `[${unit}]`);
+            });
+        }
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. Load data first (1RMs and Settings)
+            load1RMs();
+
+            // 2. Attach event listeners for saving 1RMs and recalculating
+            const inputs = document.querySelectorAll('input[type="number"]');
+            inputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    save1RMs(); // Save immediately on change
+                    calculateWeights(); // Recalculate weights
+                });
+            });
+
+            // Unit change handler
+            document.getElementById('unit-select').addEventListener('change', handleUnitChange);
+            
+            // 3. Initial calculation to populate the table (with loaded data)
+            calculateWeights();
+        });
+
+    </script>
+
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-4xl font-extrabold text-blue-700 mb-6">
+            Simplest Oly Program Calculator 🏋️
+        </h1>
+        <p class="text-gray-600 mb-8">Enter your 1 Rep Max (1RM) values below. The entire 4-week program weights will automatically be calculated and rounded to the nearest 5 (for easy loading).</p>
+
+        <!-- 1RM Input Section -->
+        <div class="input-card bg-white p-6 rounded-xl mb-6 border border-gray-200">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex justify-between items-center">
+                Program Settings & 1RMs
+                <div class="flex items-center space-x-2">
+                    <label for="unit-select" class="text-sm font-medium text-gray-700">Units:</label>
+                    <select id="unit-select" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                        <option value="kg">kg</option>
+                        <option value="lbs" selected>lbs</option>
+                    </select>
+                </div>
+            </h2>
+            
+            <!-- 1RM Row -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <!-- Snatch 1RM -->
+                <div class="flex flex-col">
+                    <label for="snatchMax" class="mb-1 text-sm font-medium text-gray-700 snatch-lift">Snatch 1RM</label>
+                    <input type="number" id="snatchMax" placeholder="e.g., 225" class="p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <!-- Clean & Jerk 1RM -->
+                <div class="flex flex-col">
+                    <label for="cjMax" class="mb-1 text-sm font-medium text-gray-700 cj-lift">Clean & Jerk 1RM</label>
+                    <input type="number" id="cjMax" placeholder="e.g., 275" class="p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <!-- Back Squat 1RM -->
+                <div class="flex flex-col">
+                    <label for="backSquatMax" class="mb-1 text-sm font-medium text-gray-700 squat-lift">Back Squat 1RM</label>
+                    <input type="number" id="backSquatMax" placeholder="e.g., 405" class="p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <!-- Front Squat 1RM -->
+                <div class="flex flex-col">
+                    <label for="frontSquatMax" class="mb-1 text-sm font-medium text-gray-700 squat-lift">Front Squat 1RM</label>
+                    <input type="number" id="frontSquatMax" placeholder="e.g., 300" class="p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+            
+            <p class="text-xs text-gray-500 mt-4">
+                *The barbell weight is fixed at **45 lbs** (or 20 kg if you switch units).
+            </p>
+        </div>
+
+        <!-- Save Status Message -->
+        <p id="saveStatus" class="text-sm text-green-600 font-medium transition-opacity duration-500 mb-4 opacity-0 h-4">
+            <!-- Dynamic Save/Load message will appear here -->
+        </p>
+
+        <!-- Program Output Table -->
+        <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-lg bg-white">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="sticky top-0 bg-blue-500 z-20">
+                    <tr>
+                        <th class="header-cell w-[10%] rounded-tl-xl">Day</th>
+                        <th class="header-cell w-[20%]">Lift</th>
+                        <th class="header-cell w-[12%]">Sets x Reps</th>
+                        <th class="header-cell w-[12%]">% of 1RM</th>
+                        <th class="header-cell w-[21%]">Source 1RM</th>
+                        <th class="header-cell w-[25%] rounded-tr-xl">Calculated Weight (Tap to load plates)</th>
+                    </tr>
+                </thead>
+                <tbody id="programTableBody" class="bg-white divide-y divide-gray-100">
+                    <!-- Program rows will be inserted here by JavaScript -->
+                    <tr>
+                        <td colspan="6" class="text-center py-10 text-gray-500 italic">
+                            Enter your 1RM values above to generate the full 4-week program.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="text-xs text-gray-500 mt-4 italic">Note: Snatch and C&J Pulls use above 100% of 1RM as they are intended to be heavier than the full lift.</p>
+    </div>
+
+    <!-- PLATE CALCULATOR MODAL -->
+    <div id="plateCalculatorModal" class="plate-modal hidden" onclick="closeModal()">
+        <div class="plate-box" onclick="event.stopPropagation()">
+            <h3 id="plateModalTitle" class="text-2xl font-bold text-blue-700 mb-4">Load Calculation</h3>
+            <div id="plateResult" class="min-h-[100px] flex items-center justify-center">
+                <!-- Plate calculation results go here -->
+            </div>
+            <button onclick="closeModal()" class="mt-4 w-full py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition duration-150">
+                Close
+            </button>
+        </div>
+    </div>
+</body>
+</html>
