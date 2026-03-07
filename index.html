@@ -1,547 +1,1197 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simplest Oly Program</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Custom styles for a clean, spreadsheet-like appearance */
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f7f7f7;
-        }
-        .header-cell {
-            background-color: #3b82f6; /* Tailwind blue-500 */
-            color: white;
-            font-weight: 600;
-            padding: 0.75rem 0.5rem;
-            text-align: center;
-        }
-        .data-row td {
-            padding: 0.5rem 0.5rem;
-            border-bottom: 1px solid #e5e7eb;
-            font-size: 0.875rem; /* sm text */
-            cursor: pointer; /* Indicate calculated weight is clickable */
-        }
-        .week-header {
-            background-color: #2563eb; /* Tailwind blue-600 */
-            color: white;
-            font-weight: 700;
-            text-align: center;
-            padding: 0.5rem;
-            position: sticky;
-            top: 0; /* Sticky header for scrolling */
-            z-index: 10;
-        }
-        .day-label {
-            background-color: #bfdbfe; /* Tailwind blue-200 */
-            font-weight: 600;
-            text-align: center;
-        }
-        .input-card {
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
-        }
-        /* Custom coloring based on lift type for visual clarity */
-        .snatch-lift { color: #16a34a; /* Green-600 */ }
-        .cj-lift { color: #dc2626; /* Red-600 */ }
-        .squat-lift { color: #4f46e5; /* Indigo-600 */ }
-        
-        /* Plate Calculator Modal Styling */
-        .plate-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 50;
-            backdrop-filter: blur(2px);
-        }
-        .plate-box {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            max-width: 90%;
-            width: 380px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-        }
-        .plate-chip {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.5rem 0.75rem;
-            margin: 0.25rem;
-            border-radius: 9999px; /* full round */
-            font-weight: 700;
-            color: white;
-            font-size: 0.875rem;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Oly Program Calculator</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --surface2:  #22263a;
+      --border:    #2e3250;
+      --blue:      #3b82f6;
+      --blue-dim:  #1e3a5f;
+      --gold:      #f59e0b;
+      --gold-dim:  #78350f;
+      --green:     #22c55e;
+      --red:       #ef4444;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --radius:    10px;
+    }
+    html { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; font-size: 15px; }
+    body { min-height: 100dvh; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 
-        /* Plate Colors (Standard IWF/Gym Colors) */
-        .plate-25 { background-color: #008744; /* Green */ }
-        .plate-20 { background-color: #0057e7; /* Blue */ }
-        .plate-15 { background-color: #ffc400; /* Yellow */ }
-        .plate-10 { background-color: #da291c; /* Red */ }
-        .plate-5 { background-color: #ffffff; color: #374151; border: 2px solid #374151; /* White/Gray */ }
-        .plate-2_5 { background-color: #000000; /* Black */ }
-        .plate-1_5 { background-color: #1a75ff; /* Light Blue */ }
-        .plate-1_0 { background-color: #999999; /* Grey */ }
-        .plate-0_5 { background-color: #cccccc; /* Light Grey */ }
+    /* ── Layout ───────────────────────────────────────────────── */
+    .app { max-width: 900px; margin: 0 auto; padding: 16px; }
+    .header { text-align: center; margin-bottom: 20px; }
+    .header h1 { font-size: 1.6rem; font-weight: 900; color: var(--gold); letter-spacing: -0.5px; }
+    .header p  { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
 
-        /* LBS Colors */
-        .plate-45 { background-color: #da291c; /* Red */ }
-        .plate-35 { background-color: #008744; /* Green */ }
-        .plate-25_lbs { background-color: #ffc400; /* Yellow */ }
-        .plate-10_lbs { background-color: #0057e7; /* Blue */ }
-        .plate-5_lbs { background-color: #ffffff; color: #374151; border: 2px solid #374151; }
-        .plate-2_5_lbs { background-color: #000000; /* Black */ }
-        .plate-1_25_lbs { background-color: #999999; /* Grey */ }
-    </style>
+    /* ── Card ─────────────────────────────────────────────────── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
+    .card-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 14px; }
+
+    /* ── Form Controls ────────────────────────────────────────── */
+    .row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+    label { display: flex; flex-direction: column; gap: 5px; font-size: 0.78rem; color: var(--muted); font-weight: 600; flex: 1; min-width: 130px; }
+    input[type=number], input[type=text], select, textarea {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 7px;
+      color: var(--text); padding: 9px 11px; font-size: 0.95rem; width: 100%;
+      outline: none; transition: border-color .15s; font-family: inherit;
+    }
+    input[type=number]:focus, input[type=text]:focus, select:focus, textarea:focus { border-color: var(--blue); }
+    select option { background: var(--surface2); }
+    .divider { height: 1px; background: var(--border); margin: 14px 0; }
+
+    /* ── Buttons ──────────────────────────────────────────────── */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .btn:hover { border-color: var(--blue); color: var(--blue); }
+    .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .btn.primary:hover { background: #2563eb; }
+    .btn.gold { background: var(--gold); border-color: var(--gold); color: #000; }
+    .btn.gold:hover { background: #d97706; }
+    .btn.sm { padding: 5px 10px; font-size: 0.75rem; }
+    .btn.danger { border-color: var(--red); color: var(--red); }
+    .btn.danger:hover { background: var(--red); color: #fff; }
+    .btn.miss { border-color: var(--gold); color: var(--gold); padding: 3px 9px; font-size: 0.72rem; }
+    .btn.miss:hover { background: var(--gold-dim); }
+    .btn.miss.maxed { border-color: var(--muted); color: var(--muted); cursor: not-allowed; opacity: .45; pointer-events: none; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+    /* ── Pills / Tags ─────────────────────────────────────────── */
+    .pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); }
+    .pill.on    { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); }
+    .pill.good  { background: #14532d; border-color: var(--green); color: var(--green); }
+    .pill.bad   { background: #450a0a; border-color: var(--red); color: var(--red); }
+    .pill.gold  { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
+    .tag { display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: 0.68rem; font-weight: 700; letter-spacing: .5px; }
+    .tag.phase-acc  { background: #1e3a5f; color: #93c5fd; }
+    .tag.phase-del  { background: #3b2a00; color: var(--gold); }
+    .tag.phase-str  { background: #1a2e1a; color: var(--green); }
+    .tag.phase-rea  { background: #2d1a2e; color: #c084fc; }
+    .tag.phase-pek  { background: #450a0a; color: #fca5a5; }
+    .tag.TOP    { background: #1e3a5f; color: #93c5fd; }
+    .tag.BACKOFF{ background: var(--surface2); color: var(--muted); }
+    .tag.TEST   { background: #450a0a; color: #fca5a5; }
+    .tag.src    { background: var(--surface2); color: var(--muted); font-size: 0.65rem; }
+    .tag.limited { background: #3b2a00; color: var(--gold); font-size: 0.65rem; }
+
+    /* ── Status row ───────────────────────────────────────────── */
+    .status-row { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin: 10px 0; }
+
+    /* ── Week nav ─────────────────────────────────────────────── */
+    .week-nav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .week-nav .label { font-size: 0.75rem; color: var(--muted); font-weight: 700; margin-right: 4px; }
+
+    /* ── Per-lift TM ──────────────────────────────────────────── */
+    details.per-lift-tm { margin-top: 4px; }
+    details.per-lift-tm > summary {
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--muted); cursor: pointer; list-style: none;
+      display: flex; justify-content: space-between; align-items: center; padding: 8px 0;
+      user-select: none;
+    }
+    details.per-lift-tm > summary::-webkit-details-marker { display: none; }
+    details.per-lift-tm > summary:hover { color: var(--text); }
+    details.per-lift-tm .per-lift-body { padding-top: 8px; }
+
+    /* ── Program ──────────────────────────────────────────────── */
+    details.week { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
+    details.week summary { display: flex; justify-content: space-between; align-items: center; padding: 13px 16px; cursor: pointer; list-style: none; background: var(--surface2); user-select: none; }
+    details.week summary::-webkit-details-marker { display: none; }
+    details.week summary:hover { background: #252a3d; }
+    .wk-title { font-weight: 900; font-size: 1rem; }
+    .wk-right { display: flex; align-items: center; gap: 8px; }
+    .wk-done  { font-size: 0.75rem; color: var(--muted); }
+
+    .day-card { border-top: 1px solid var(--border); padding: 14px 16px; }
+    .day-head  { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .day-title { font-weight: 900; font-size: 0.95rem; }
+    .day-done-label { display: flex; align-items: center; gap: 7px; font-size: 0.82rem; color: var(--muted); cursor: pointer; }
+    .day-done-label input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--green); cursor: pointer; }
+    .day-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
+    .tonnage-chip { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+
+    .lift-list { display: flex; flex-direction: column; gap: 8px; }
+    .lift-box  { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+    .lift-box.done-day { opacity: .45; }
+    .lift-box.has-misses { border-color: var(--gold); }
+    .lift-top  { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+    .lift-name { font-weight: 700; font-size: 0.9rem; }
+    .lift-tags { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+    .lift-mid  { font-size: 0.8rem; color: var(--muted); margin-bottom: 2px; }
+    .lift-wt   { font-size: 1.35rem; font-weight: 900; color: var(--gold); }
+    .lift-wt span.unit  { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-left: 3px; }
+    .lift-wt span.orig  { font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-left: 8px; text-decoration: line-through; }
+    .miss-info { font-size: 0.72rem; color: var(--gold); font-weight: 700; margin: 3px 0 5px; }
+    .lift-actions { display: flex; gap: 6px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+
+    /* ── Plate Calculator ─────────────────────────────────────── */
+    .plate-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .plate-section h4 { font-size: 0.72rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+    .plate-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .plate-chip { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; border: 2px solid; }
+    .plate-chip .p-weight { font-size: 0.85rem; }
+    .plate-chip .p-count  { font-size: 0.65rem; opacity: .75; }
+    .p-red    { background: #450a0a; border-color: #ef4444; color: #fca5a5; }
+    .p-blue   { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
+    .p-yellow { background: #3b2a00; border-color: #f59e0b; color: #fde68a; }
+    .p-green  { background: #14532d; border-color: #22c55e; color: #86efac; }
+    .p-white  { background: #1e293b; border-color: #94a3b8; color: #e2e8f0; }
+    .p-gray   { background: var(--surface2); border-color: var(--border); color: var(--muted); }
+    .plate-bar { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 6px; background: #1e293b; border: 1px solid #334155; font-size: 0.75rem; color: var(--muted); font-weight: 700; }
+    .plate-empty { font-size: 0.75rem; color: var(--muted); padding: 4px 0; }
+
+    /* ── Warmup Ramp ──────────────────────────────────────────── */
+    .warmup-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .warmup-section h4 { font-size: 0.72rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+    .warmup-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+    .warmup-step { display: inline-flex; flex-direction: column; align-items: center; padding: 5px 9px; border-radius: 7px; border: 1px solid var(--border); background: var(--bg); min-width: 56px; }
+    .warmup-step .ws-wt  { font-size: 0.82rem; font-weight: 700; }
+    .warmup-step .ws-rep { font-size: 0.62rem; color: var(--muted); font-weight: 600; margin-top: 1px; }
+    .warmup-step.work    { border-color: var(--gold); }
+    .warmup-step.work .ws-wt  { color: var(--gold); }
+    .warmup-step.work .ws-rep { color: var(--gold); opacity: .75; }
+    .warmup-arrow { color: var(--muted); font-size: 0.7rem; }
+
+    /* ── Session Notes ────────────────────────────────────────── */
+    .notes-area { margin-top: 12px; font-size: 0.82rem; resize: vertical; min-height: 52px; background: var(--bg); }
+    .notes-area::placeholder { color: var(--muted); }
+
+    /* ── Rest Timer ───────────────────────────────────────────── */
+    #timer-fab { position: fixed; bottom: calc(20px + env(safe-area-inset-bottom)); right: 20px; z-index: 100; }
+    .timer-btn-main { width: 56px; height: 56px; border-radius: 50%; background: var(--blue); border: none; color: #fff; font-size: 1.1rem; font-weight: 900; cursor: pointer; box-shadow: 0 4px 16px rgba(59,130,246,.4); display: flex; align-items: center; justify-content: center; transition: transform .15s; }
+    .timer-btn-main:hover { transform: scale(1.08); }
+    .timer-btn-main.running { background: var(--green); }
+    .timer-popup { position: fixed; bottom: calc(90px + env(safe-area-inset-bottom)); right: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; width: 240px; box-shadow: 0 8px 32px rgba(0,0,0,.5); display: none; z-index: 101; }
+    .timer-popup.open { display: block; }
+    .timer-display { text-align: center; font-size: 2.5rem; font-weight: 900; color: var(--gold); font-variant-numeric: tabular-nums; margin: 8px 0; }
+    .timer-display.done { color: var(--green); }
+    .timer-presets { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+    .timer-custom-row { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+    .timer-custom-row input { flex: 1; padding: 5px 8px; font-size: 0.8rem; }
+    .timer-controls { display: flex; gap: 8px; justify-content: center; }
+
+    /* ── Cycle note ───────────────────────────────────────────── */
+    .cycle-note { font-size: 0.75rem; color: var(--muted); line-height: 1.6; margin-top: 12px; }
+
+    /* ── History ──────────────────────────────────────────────── */
+    .history-empty { text-align: center; color: var(--muted); padding: 24px; font-size: 0.85rem; }
+    .history-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .history-item:last-child { border-bottom: none; }
+    .history-key  { font-weight: 700; font-size: 0.9rem; }
+    .history-date { font-size: 0.75rem; color: var(--muted); margin-top: 1px; }
+    .history-note { font-size: 0.75rem; color: var(--muted); margin-top: 3px; font-style: italic; }
+
+    /* ── No-1RM hint ──────────────────────────────────────────── */
+    .no-1rm-hint { display:none; background: var(--gold-dim); border: 1px solid var(--gold); border-radius: 8px; padding: 14px 18px; text-align: center; font-size: 0.88rem; font-weight: 700; color: var(--gold); margin-bottom: 14px; }
+
+    /* ── Inputs card collapsible ─────────────────────────────── */
+    details.inputs-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; }
+    details.inputs-card > summary { padding: 14px 18px; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; user-select: none; border-radius: var(--radius); }
+    details.inputs-card > summary::-webkit-details-marker { display: none; }
+    details.inputs-card > summary:hover { background: var(--surface2); }
+    details.inputs-card[open] > summary { border-bottom: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; }
+    .inputs-summary-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .inputs-summary-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .inputs-summary-vals { font-size: 0.78rem; color: var(--text); font-weight: 600; }
+    .inputs-summary-arrow { font-size: 0.75rem; color: var(--muted); flex-shrink: 0; }
+    .inputs-body { padding: 18px; }
+    /* ── Bump 1RM row ─────────────────────────────────────────── */
+    .bump-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--border); margin-top: 6px; }
+    .bump-label { font-size: 0.72rem; color: var(--muted); font-weight: 600; flex: 1; min-width: 120px; }
+
+    /* ── Responsive ───────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .app { padding: 10px; }
+      .lift-wt { font-size: 1.15rem; }
+    }
+  </style>
 </head>
-<body class="p-4 md:p-8">
+<body>
+<div class="app">
 
-    <script>
-        // --- DATA STRUCTURE FOR THE PROGRAM ---
-        const PROGRAM_DATA = [
-            // Week 1
-            { week: 1, day: 1, lift: "Snatch", setsReps: "5 x 3", percent: 0.70, source: "snatchMax" },
-            { week: 1, day: 1, lift: "Snatch Pull", setsReps: "3 x 3", percent: 1.05, source: "snatchMax" },
-            { week: 1, day: 1, lift: "Front Squat", setsReps: "5 x 3", percent: 0.75, source: "frontSquatMax" },
+  <div class="header">
+    <h1>🏋️ Oly Program Calculator</h1>
+    <p>8-week (3×/wk) · TM + readiness + deload · back-off singles · warmup ramp · plate calculator · rest timer</p>
+  </div>
 
-            { week: 1, day: 2, lift: "Jerk", setsReps: "5 x 3", percent: 0.70, source: "cjMax" },
-            { week: 1, day: 2, lift: "Push Press", setsReps: "3 x 3", percent: 0.60, source: "cjMax" },
-            { week: 1, day: 2, lift: "Overhead Squat (OHS)", setsReps: "3 x 5", percent: 0.80, source: "snatchMax" },
-
-            { week: 1, day: 3, lift: "Clean & Jerk (C&J)", setsReps: "5 x 3", percent: 0.70, source: "cjMax" },
-            { week: 1, day: 3, lift: "Clean Pull", setsReps: "3 x 3", percent: 1.05, source: "cjMax" },
-            { week: 1, day: 3, lift: "Back Squat", setsReps: "5 x 5", percent: 0.80, source: "backSquatMax" },
-
-            // Week 2
-            { week: 2, day: 1, lift: "Snatch", setsReps: "5 x 2", percent: 0.75, source: "snatchMax" },
-            { week: 2, day: 1, lift: "Snatch Pull", setsReps: "3 x 2", percent: 1.10, source: "snatchMax" },
-            { week: 2, day: 1, lift: "Front Squat", setsReps: "3 x 3", percent: 0.80, source: "frontSquatMax" },
-
-            { week: 2, day: 2, lift: "Jerk", setsReps: "5 x 2", percent: 0.75, source: "cjMax" },
-            { week: 2, day: 2, lift: "Push Press", setsReps: "3 x 3", percent: 0.65, source: "cjMax" },
-            { week: 2, day: 2, lift: "Overhead Squat (OHS)", setsReps: "3 x 3", percent: 0.85, source: "snatchMax" },
-
-            { week: 2, day: 3, lift: "Clean & Jerk (C&J)", setsReps: "5 x 2", percent: 0.75, source: "cjMax" },
-            { week: 2, day: 3, lift: "Clean Pull", setsReps: "3 x 2", percent: 1.10, source: "cjMax" },
-            { week: 2, day: 3, lift: "Back Squat", setsReps: "3 x 5", percent: 0.85, source: "backSquatMax" },
-
-            // Week 3
-            { week: 3, day: 1, lift: "Snatch", setsReps: "5 x 1", percent: 0.80, source: "snatchMax" },
-            { week: 3, day: 1, lift: "Snatch Pull", setsReps: "3 x 1", percent: 1.15, source: "snatchMax" },
-            { week: 3, day: 1, lift: "Front Squat", setsReps: "3 x 2", percent: 0.85, source: "frontSquatMax" },
-
-            { week: 3, day: 2, lift: "Jerk", setsReps: "5 x 1", percent: 0.80, source: "cjMax" },
-            { week: 3, day: 2, lift: "Push Press", setsReps: "3 x 2", percent: 0.70, source: "cjMax" },
-            { week: 3, day: 2, lift: "Overhead Squat (OHS)", setsReps: "3 x 2", percent: 0.90, source: "snatchMax" },
-
-            { week: 3, day: 3, lift: "Clean & Jerk (C&J)", setsReps: "5 x 1", percent: 0.80, source: "cjMax" },
-            { week: 3, day: 3, lift: "Clean Pull", setsReps: "3 x 1", percent: 1.15, source: "cjMax" },
-            { week: 3, day: 3, lift: "Back Squat", setsReps: "3 x 3", percent: 0.90, source: "backSquatMax" },
-
-            // Week 4 (Test/Deload) - Note: Final lifts are "up to" and are displayed as targets
-            { week: 4, day: 1, lift: "Snatch", setsReps: "Heavy Single", percent: 0.90, source: "snatchMax", note: "Target weight, load by feel" },
-            { week: 4, day: 1, lift: "Snatch Pull", setsReps: "3 x 3", percent: 1.00, source: "snatchMax" },
-            { week: 4, day: 1, lift: "Front Squat", setsReps: "3 x 1", percent: 0.90, source: "frontSquatMax" },
-
-            { week: 4, day: 2, lift: "Jerk", setsReps: "Heavy Single", percent: 0.90, source: "cjMax", note: "Target weight, load by feel" },
-            { week: 4, day: 2, lift: "Push Press", setsReps: "3 x 3", percent: 0.60, source: "cjMax" },
-            { week: 4, day: 2, lift: "Overhead Squat (OHS)", setsReps: "3 x 5", percent: 0.70, source: "snatchMax" },
-
-            { week: 4, day: 3, lift: "Clean & Jerk (C&J)", setsReps: "Heavy Single", percent: 0.90, source: "cjMax", note: "Target weight, load by feel" },
-            { week: 4, day: 3, lift: "Clean Pull", setsReps: "3 x 3", percent: 1.00, source: "cjMax" },
-            { week: 4, day: 3, lift: "Back Squat", setsReps: "3 x 1", percent: 0.95, source: "backSquatMax" },
-        ];
-
-        // --- PLATE DATA & CONFIGURATION ---
-        // Fixed standard bar weights
-        const FIXED_BAR_WEIGHTS = { 'kg': 20, 'lbs': 45 };
-        
-        const PLATE_INVENTORY = {
-            // Weights are listed descending for easier greedy calculation
-            'kg': [25, 20, 15, 10, 5, 2.5, 2, 1.5, 1, 0.5],
-            'lbs': [45, 35, 25, 10, 5, 2.5, 1.25]
-        };
-        const MAX_STORAGE_KEY = 'olyProgramMaxes';
-
-        // --- DATA PERSISTENCE FUNCTIONS (LOCAL STORAGE) ---
-        function save1RMs() {
-            const maxes = get1RMs();
-            // Only saving the unit choice and 1RMs
-            maxes.unit = document.getElementById('unit-select').value;
-            
-            try {
-                localStorage.setItem(MAX_STORAGE_KEY, JSON.stringify(maxes));
-                const statusElement = document.getElementById('saveStatus');
-                statusElement.textContent = '1RMs and settings saved automatically!';
-                statusElement.classList.remove('opacity-0');
-                setTimeout(() => { statusElement.classList.add('opacity-0'); }, 2000);
-            } catch (e) {
-                console.error('Error saving 1RMs to local storage:', e);
-            }
-        }
-
-        function load1RMs() {
-            const savedData = localStorage.getItem(MAX_STORAGE_KEY);
-            // DEFAULT TO LBS
-            let defaultUnit = 'lbs';
-
-            if (savedData) {
-                try {
-                    const maxes = JSON.parse(savedData);
-                    
-                    // Load unit (defaults to 'lbs' if none saved)
-                    defaultUnit = maxes.unit || 'lbs';
-                    
-                    document.getElementById('unit-select').value = defaultUnit;
-                    document.getElementById('snatchMax').value = maxes.snatchMax || '';
-                    document.getElementById('cjMax').value = maxes.cjMax || '';
-                    document.getElementById('backSquatMax').value = maxes.backSquatMax || '';
-                    document.getElementById('frontSquatMax').value = maxes.frontSquatMax || '';
-                    
-                } catch (e) {
-                    console.error('Error parsing saved 1RMs:', e);
-                }
-            } else {
-                // Set default unit if no data is found
-                document.getElementById('unit-select').value = defaultUnit;
-            }
-        }
-
-        // --- UI UTILITY FUNCTIONS ---
-        function handleUnitChange(e) {
-            // Save the new unit setting and recalculate all weights immediately
-            save1RMs();
-            calculateWeights();
-        }
-
-        function roundToNearest5(value) {
-            if (isNaN(value) || value < 0) return 0;
-            return Math.round(value / 5) * 5;
-        }
-
-        function getColorClass(source) {
-            switch (source) {
-                case 'snatchMax':
-                    return 'snatch-lift';
-                case 'cjMax':
-                    return 'cj-lift';
-                case 'backSquatMax':
-                case 'frontSquatMax':
-                    return 'squat-lift';
-                default:
-                    return '';
-            }
-        }
-
-        function get1RMs() {
-            // Returns only the Max values for calculation purposes
-            return {
-                snatchMax: parseFloat(document.getElementById('snatchMax').value) || 0,
-                cjMax: parseFloat(document.getElementById('cjMax').value) || 0,
-                backSquatMax: parseFloat(document.getElementById('backSquatMax').value) || 0,
-                frontSquatMax: parseFloat(document.getElementById('frontSquatMax').value) || 0,
-            };
-        }
-        
-        // --- PLATE CALCULATOR LOGIC ---
-
-        /**
-         * Calculates the plate combination for one side of the bar.
-         */
-        function calculatePlates(totalWeight, unit) {
-            // Use the fixed bar weight based on the selected unit
-            const barWeight = FIXED_BAR_WEIGHTS[unit]; 
-            const inventory = PLATE_INVENTORY[unit];
-            
-            if (totalWeight <= barWeight) {
-                return { plates: [], bar: barWeight, total: totalWeight, error: `Weight must be greater than ${barWeight}${unit}.` };
-            }
-
-            let platesNeeded = (totalWeight - barWeight) / 2;
-            let resultPlates = {};
-
-            // Use a small epsilon for floating point comparison robustness
-            const epsilon = 0.001; 
-
-            for (const plate of inventory) {
-                // If the plate is smaller than or equal to the remaining weight
-                if (platesNeeded >= (plate - epsilon)) {
-                    // Calculate how many times this plate can fit
-                    const count = Math.floor(platesNeeded / plate);
-                    if (count > 0) {
-                        resultPlates[plate] = count;
-                        platesNeeded -= count * plate;
-                    }
-                }
-            }
-            
-            // Final check on remaining weight (should be close to zero)
-            const loadedWeight = barWeight + 2 * Object.entries(resultPlates).reduce((sum, [p, c]) => sum + parseFloat(p) * c, 0);
-            
-            if (Math.abs(totalWeight - loadedWeight) > 0.01) {
-                return { plates: [], bar: barWeight, total: totalWeight, error: `Cannot load ${totalWeight}${unit} exactly with standard plates and ${barWeight}${unit} bar.` };
-            }
-
-            return { plates: resultPlates, bar: barWeight, total: totalWeight, error: null };
-        }
-
-        /**
-         * Displays the plate calculation result in a modal.
-         */
-        function showPlateModal(weightString) {
-            // weightString format: "100 [kg/lbs]"
-            const parts = weightString.split(' ');
-            const totalWeight = parseFloat(parts[0]);
-            const unit = document.getElementById('unit-select').value;
-            const barWeight = FIXED_BAR_WEIGHTS[unit]; // Use fixed bar weight
-
-            const modal = document.getElementById('plateCalculatorModal');
-            const resultDiv = document.getElementById('plateResult');
-            
-            if (totalWeight === 0) {
-                resultDiv.innerHTML = `<p class="text-gray-500 text-center">Cannot calculate plates for '---' weight.</p>`;
-                modal.classList.remove('hidden');
-                return;
-            }
-
-            const calculation = calculatePlates(totalWeight, unit);
-            let html = '';
-
-            if (calculation.error) {
-                html = `<p class="text-red-500 font-medium text-center">${calculation.error}</p>`;
-            } else {
-                html += `<div class="text-lg font-bold text-center mb-4 text-blue-800">Plates Per Side</div>`;
-                html += `<div class="text-2xl font-extrabold text-center mb-4">${totalWeight}${unit}</div>`;
-                html += `<div class="flex flex-wrap justify-center items-center my-4 p-4 border rounded-lg bg-gray-50 min-h-[50px]">`;
-                
-                const plateEntries = Object.entries(calculation.plates).sort((a, b) => parseFloat(b[0]) - parseFloat(a[0]));
-
-                if (plateEntries.length === 0) {
-                     html += `<p class="text-gray-500">Only the ${barWeight}${unit} bar is needed.</p>`;
-                } else {
-                    for (const [plateWeight, count] of plateEntries) {
-                        const plateDisplay = unit === 'kg' ? plateWeight : plateWeight.replace('.', '_').replace('.', '_') + '_lbs';
-                        html += `
-                            <div class="flex items-center m-1">
-                                <span class="plate-chip plate-${plateDisplay.replace('.', '_')}" style="min-width: 45px;">
-                                    ${plateWeight}${unit}
-                                </span>
-                                <span class="text-gray-600 ml-1">x${count}</span>
-                            </div>
-                        `;
-                    }
-                }
-                html += `</div>`;
-                html += `<div class="text-sm text-gray-600 text-center border-t pt-2 mt-2">
-                            <span class="font-bold text-blue-700">Barbell: ${barWeight}${unit} (Fixed)</span>
-                         </div>`;
-            }
-
-            document.getElementById('plateModalTitle').textContent = `Load Calculation`;
-            resultDiv.innerHTML = html;
-            modal.classList.remove('hidden');
-        }
-        
-        function closeModal() {
-            document.getElementById('plateCalculatorModal').classList.add('hidden');
-        }
-
-        // --- Main rendering logic ---
-
-        function calculateWeights() {
-            const maxes = get1RMs();
-            const programTableBody = document.getElementById('programTableBody');
-
-            programTableBody.innerHTML = ''; // Clear previous content
-
-            let lastWeek = 0;
-            let lastDay = 0;
-
-            PROGRAM_DATA.forEach((item, index) => {
-                const max = maxes[item.source];
-                let calculatedWeight = roundToNearest5(max * item.percent);
-
-                // Start new week block
-                if (item.week !== lastWeek) {
-                    const weekRow = programTableBody.insertRow();
-                    weekRow.classList.add('week-header');
-                    const weekCell = weekRow.insertCell(0);
-                    weekCell.colSpan = 6;
-                    weekCell.textContent = `WEEK ${item.week}: ${item.week === 4 ? 'TEST / DELOAD' : item.week === 1 ? 'FOUNDATION (5x3)' : item.week === 2 ? 'BUILD (5x2)' : 'PEAK (5x1)'}`;
-                    lastWeek = item.week;
-                    lastDay = 0;
-                }
-
-                const row = programTableBody.insertRow();
-                row.classList.add('data-row', 'hover:bg-blue-50');
-
-                // Day column (only show if it's a new day within the week)
-                const dayCell = row.insertCell(0);
-                if (item.day !== lastDay) {
-                    dayCell.textContent = `Day ${item.day}`;
-                    dayCell.classList.add('day-label');
-                    lastDay = item.day;
-                }
-
-                // Lift Name
-                const liftCell = row.insertCell(1);
-                liftCell.textContent = item.lift;
-                liftCell.classList.add('font-semibold', getColorClass(item.source));
-
-                // Sets x Reps
-                row.insertCell(2).textContent = item.setsReps;
-
-                // Percentage
-                row.insertCell(3).textContent = `${(item.percent * 100).toFixed(0)}%`;
-
-                // 1RM Source
-                row.insertCell(4).textContent = item.source.replace('Max', ' 1RM').replace('snatch', 'Snatch').replace('cj', 'C&J').replace('backSquat', 'Back Squat').replace('frontSquat', 'Front Squat');
-
-                // Calculated Weight
-                const weightCell = row.insertCell(5);
-                const weightString = calculatedWeight > 0 ? `${calculatedWeight} [kg/lbs]` : '---';
-                
-                weightCell.textContent = weightString;
-                weightCell.classList.add('font-extrabold', 'text-lg', 'text-blue-900');
-                if (item.note) {
-                    weightCell.title = item.note;
-                }
-                
-                // Add click handler to trigger the Plate Calculator
-                if (calculatedWeight > 0) {
-                    weightCell.setAttribute('onclick', `showPlateModal('${weightString}')`);
-                }
-            });
-
-            // Update unit hint
-            const unit = document.getElementById('unit-select').value;
-            document.querySelectorAll('.data-row .font-extrabold').forEach(cell => {
-                const text = cell.textContent;
-                cell.textContent = text.replace(/\[kg\/lbs\]/g, `[${unit}]`);
-            });
-        }
-
-        // --- INITIALIZATION ---
-        document.addEventListener('DOMContentLoaded', () => {
-            // 1. Load data first (1RMs and Settings)
-            load1RMs();
-
-            // 2. Attach event listeners for saving 1RMs and recalculating
-            const inputs = document.querySelectorAll('input[type="number"]');
-            inputs.forEach(input => {
-                input.addEventListener('input', () => {
-                    save1RMs(); // Save immediately on change
-                    calculateWeights(); // Recalculate weights
-                });
-            });
-
-            // Unit change handler
-            document.getElementById('unit-select').addEventListener('change', handleUnitChange);
-            
-            // 3. Initial calculation to populate the table (with loaded data)
-            calculateWeights();
-        });
-
-    </script>
-
-    <div class="max-w-7xl mx-auto">
-        <h1 class="text-4xl font-extrabold text-blue-700 mb-6">
-            Simplest Oly Program Calculator 🏋️
-        </h1>
-        <p class="text-gray-600 mb-8">Enter your 1 Rep Max (1RM) values below. The entire 4-week program weights will automatically be calculated and rounded to the nearest 5 (for easy loading).</p>
-
-        <!-- 1RM Input Section -->
-        <div class="input-card bg-white p-6 rounded-xl mb-6 border border-gray-200">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 flex justify-between items-center">
-                Program Settings & 1RMs
-                <div class="flex items-center space-x-2">
-                    <label for="unit-select" class="text-sm font-medium text-gray-700">Units:</label>
-                    <select id="unit-select" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
-                        <option value="kg">kg</option>
-                        <option value="lbs" selected>lbs</option>
-                    </select>
-                </div>
-            </h2>
-            
-            <!-- 1RM Row -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <!-- Snatch 1RM -->
-                <div class="flex flex-col">
-                    <label for="snatchMax" class="mb-1 text-sm font-medium text-gray-700 snatch-lift">Snatch 1RM</label>
-                    <input type="number" id="snatchMax" placeholder="e.g., 225" class="p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <!-- Clean & Jerk 1RM -->
-                <div class="flex flex-col">
-                    <label for="cjMax" class="mb-1 text-sm font-medium text-gray-700 cj-lift">Clean & Jerk 1RM</label>
-                    <input type="number" id="cjMax" placeholder="e.g., 275" class="p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <!-- Back Squat 1RM -->
-                <div class="flex flex-col">
-                    <label for="backSquatMax" class="mb-1 text-sm font-medium text-gray-700 squat-lift">Back Squat 1RM</label>
-                    <input type="number" id="backSquatMax" placeholder="e.g., 405" class="p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <!-- Front Squat 1RM -->
-                <div class="flex flex-col">
-                    <label for="frontSquatMax" class="mb-1 text-sm font-medium text-gray-700 squat-lift">Front Squat 1RM</label>
-                    <input type="number" id="frontSquatMax" placeholder="e.g., 300" class="p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                </div>
-            </div>
-            
-            <p class="text-xs text-gray-500 mt-4">
-                *The barbell weight is fixed at **45 lbs** (or 20 kg if you switch units).
-            </p>
-        </div>
-
-        <!-- Save Status Message -->
-        <p id="saveStatus" class="text-sm text-green-600 font-medium transition-opacity duration-500 mb-4 opacity-0 h-4">
-            <!-- Dynamic Save/Load message will appear here -->
-        </p>
-
-        <!-- Program Output Table -->
-        <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-lg bg-white">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="sticky top-0 bg-blue-500 z-20">
-                    <tr>
-                        <th class="header-cell w-[10%] rounded-tl-xl">Day</th>
-                        <th class="header-cell w-[20%]">Lift</th>
-                        <th class="header-cell w-[12%]">Sets x Reps</th>
-                        <th class="header-cell w-[12%]">% of 1RM</th>
-                        <th class="header-cell w-[21%]">Source 1RM</th>
-                        <th class="header-cell w-[25%] rounded-tr-xl">Calculated Weight (Tap to load plates)</th>
-                    </tr>
-                </thead>
-                <tbody id="programTableBody" class="bg-white divide-y divide-gray-100">
-                    <!-- Program rows will be inserted here by JavaScript -->
-                    <tr>
-                        <td colspan="6" class="text-center py-10 text-gray-500 italic">
-                            Enter your 1RM values above to generate the full 4-week program.
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        <p class="text-xs text-gray-500 mt-4 italic">Note: Snatch and C&J Pulls use above 100% of 1RM as they are intended to be heavier than the full lift.</p>
+  <!-- ── Inputs Card ──────────────────────────────────────────── -->
+  <details class="inputs-card" id="inputsCard" open>
+    <summary>
+      <div class="inputs-summary-left">
+        <span class="inputs-summary-title">⚙ Settings &amp; 1RMs</span>
+        <span id="inputsSummary" class="inputs-summary-vals"></span>
+      </div>
+      <span id="inputsArrow" class="inputs-summary-arrow">▼</span>
+    </summary>
+    <div class="inputs-body">
+    <div class="row">
+      <label>Snatch 1RM <input id="snatch" type="number" step="1" placeholder="0" /></label>
+      <label>Clean 1RM  <input id="clean"  type="number" step="1" placeholder="0" /></label>
+      <label>Jerk 1RM   <input id="jerk"   type="number" step="1" placeholder="0" /></label>
+    </div>
+    <div class="row">
+      <label>Back Squat 1RM <input id="bs" type="number" step="1" placeholder="0" /></label>
+      <label>Front Squat 1RM<input id="fs" type="number" step="1" placeholder="0" /></label>
     </div>
 
-    <!-- PLATE CALCULATOR MODAL -->
-    <div id="plateCalculatorModal" class="plate-modal hidden" onclick="closeModal()">
-        <div class="plate-box" onclick="event.stopPropagation()">
-            <h3 id="plateModalTitle" class="text-2xl font-bold text-blue-700 mb-4">Load Calculation</h3>
-            <div id="plateResult" class="min-h-[100px] flex items-center justify-center">
-                <!-- Plate calculation results go here -->
-            </div>
-            <button onclick="closeModal()" class="mt-4 w-full py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition duration-150">
-                Close
-            </button>
-        </div>
+    <div class="row">
+      <label>Units
+        <select id="unit">
+          <option value="lb" selected>lb</option>
+          <option value="kg">kg</option>
+        </select>
+      </label>
+      <label>Rounding increment
+        <input id="inc" type="number" step="0.5" value="5" />
+      </label>
     </div>
+
+    <div class="divider"></div>
+
+    <div class="row">
+      <label>Training Max (TM%) — applied to all lifts
+        <select id="tmAll">
+          <option value="1.00">100% (True 1RM)</option>
+          <option value="0.975">97.5%</option>
+          <option value="0.95">95%</option>
+          <option value="0.925" selected>92.5% (default)</option>
+          <option value="0.90">90%</option>
+        </select>
+      </label>
+      <label>Readiness
+        <select id="feel">
+          <option value="ok" selected>OK (normal)</option>
+          <option value="good">Good (+2.5% top work)</option>
+          <option value="bad">Bad (−5% top work)</option>
+        </select>
+      </label>
+      <label>Deload Mode
+        <select id="deload">
+          <option value="off" selected>OFF</option>
+          <option value="on">ON (−10% intensity, −40% sets)</option>
+        </select>
+      </label>
+    </div>
+
+    <!-- ── Per-lift TM overrides ──────────────────────────────── -->
+    <details class="per-lift-tm" id="perLiftDetails">
+      <summary>Per-lift TM% Overrides <span id="perLiftArrow">▶</span></summary>
+      <div class="per-lift-body">
+        <div class="row">
+          <label>Snatch TM
+            <select id="tm_snatch">
+              <option value="auto">— use global —</option>
+              <option value="1.00">100%</option><option value="0.975">97.5%</option>
+              <option value="0.95">95%</option><option value="0.925">92.5%</option><option value="0.90">90%</option>
+            </select>
+          </label>
+          <label>Clean TM
+            <select id="tm_clean">
+              <option value="auto">— use global —</option>
+              <option value="1.00">100%</option><option value="0.975">97.5%</option>
+              <option value="0.95">95%</option><option value="0.925">92.5%</option><option value="0.90">90%</option>
+            </select>
+          </label>
+          <label>Jerk TM
+            <select id="tm_jerk">
+              <option value="auto">— use global —</option>
+              <option value="1.00">100%</option><option value="0.975">97.5%</option>
+              <option value="0.95">95%</option><option value="0.925">92.5%</option><option value="0.90">90%</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Back Squat TM
+            <select id="tm_bs">
+              <option value="auto">— use global —</option>
+              <option value="1.00">100%</option><option value="0.975">97.5%</option>
+              <option value="0.95">95%</option><option value="0.925">92.5%</option><option value="0.90">90%</option>
+            </select>
+          </label>
+          <label>Front Squat TM
+            <select id="tm_fs">
+              <option value="auto">— use global —</option>
+              <option value="1.00">100%</option><option value="0.975">97.5%</option>
+              <option value="0.95">95%</option><option value="0.925">92.5%</option><option value="0.90">90%</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </details>
+
+    <div class="divider"></div>
+
+    <div class="row">
+      <label>Filter (optional)
+        <input id="filter" type="text" placeholder="snatch, jerk, week 6, squat…" />
+      </label>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Week / Day nav -->
+    <div class="btn-row" style="margin-bottom:10px;">
+      <button class="btn sm primary" id="todayToggle">Today Mode: ON</button>
+      <div class="week-nav" id="weekButtons"></div>
+      <div class="week-nav" id="dayButtons"></div>
+    </div>
+
+    <div class="status-row">
+      <span class="pill on" id="currentPill">Week 1 · Day 1</span>
+      <span class="pill" id="countPill">0 lifts</span>
+      <span class="pill on" id="feelPill">Readiness: OK</span>
+      <span class="pill" id="deloadPill">Deload: OFF</span>
+      <span class="pill gold" id="tmPill">TM: 92.5%</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="bump-row">
+      <span class="bump-label">⬆ Bump all 1RMs:</span>
+      <button class="btn sm gold" id="bumpUp">+2.5 lb</button>
+      <button class="btn sm" id="bumpDown">−2.5 lb</button>
+    </div>
+
+    <div class="btn-row">
+      <span style="font-size:.75rem;color:var(--muted);flex:1;">
+        Autosave: inputs, progress, notes &amp; misses persist in localStorage.<br>
+        Rules: miss → drop ~3% per miss; cap 3 misses/lift/day. Back-off singles baked in.
+      </span>
+      <button class="btn sm" id="exportCsv">Export CSV</button>
+      <button class="btn sm danger" id="resetProgress">Reset progress</button>
+    </div>
+    </div><!-- /inputs-body -->
+  </details>
+
+  <!-- ── Program Card ─────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">Program</div>
+    <div id="no1rmHint" class="no-1rm-hint">👆 Enter your 1RM values above to see working weights, plate setups &amp; warmup ramps</div>
+    <div id="program"></div>
+    <div class="cycle-note">
+      Cycle intent: Weeks 1–3 accumulate (tech + squat base) · Week 4 deload/primer · Weeks 5–6 strength · Week 7 realization · Week 8 peak/test.
+    </div>
+  </div>
+
+  <!-- ── History Card ─────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">Completed Sessions</div>
+    <div id="history"></div>
+  </div>
+
+</div>
+
+<!-- ── Rest Timer FAB ────────────────────────────────────────── -->
+<div id="timer-fab">
+  <div class="timer-popup" id="timerPopup">
+    <div style="font-size:.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Rest Timer</div>
+    <div class="timer-display" id="timerDisplay">2:00</div>
+    <div class="timer-presets">
+      <button class="btn sm" onclick="setTimer(60)">1m</button>
+      <button class="btn sm" onclick="setTimer(90)">90s</button>
+      <button class="btn sm primary" onclick="setTimer(120)">2m</button>
+      <button class="btn sm" onclick="setTimer(180)">3m</button>
+    </div>
+    <div class="timer-custom-row">
+      <input type="number" id="customTimerSec" min="10" max="900" step="5" placeholder="Custom (sec)" />
+      <button class="btn sm" onclick="setCustomTimer()">Set</button>
+    </div>
+    <div class="timer-controls">
+      <button class="btn sm primary" id="timerStartBtn" onclick="toggleTimer()">Start</button>
+      <button class="btn sm" onclick="resetTimer()">Reset</button>
+    </div>
+  </div>
+  <button class="timer-btn-main" id="timerFabBtn" onclick="toggleTimerPopup()" title="Rest Timer">⏱</button>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────
+// PROGRAM DATA (8 weeks, v3)
+// ─────────────────────────────────────────────────────────────────
+const PROGRAM_8W = [
+  // WEEK 1 (accumulate - doubles, squat volume, speed pulls)
+  { week:1, day:1, items:[
+    { lift:"Snatch",                  sets:6, reps:2, pct:0.70, source:"snatch" },
+    { lift:"Snatch Pull (speed)",     sets:4, reps:3, pct:0.95, source:"snatch" },
+    { lift:"Back Squat (volume)",     sets:5, reps:5, pct:0.70, source:"bs" },
+  ]},
+  { week:1, day:2, items:[
+    { lift:"Jerk (rack/blocks)",      sets:6, reps:2, pct:0.72, source:"jerk" },
+    { lift:"Hang Clean (mid-thigh)",  sets:5, reps:2, pct:0.70, source:"clean" },
+    { lift:"Push Press",              sets:3, reps:5, pct:0.62, source:"jerk" },
+  ]},
+  { week:1, day:3, items:[
+    { lift:"Clean + Jerk (1+1)",      sets:5, reps:1, pct:0.70, source:"cj_combo" },
+    { lift:"Front Squat (heavy-ish)", sets:4, reps:3, pct:0.75, source:"fs" },
+    { lift:"Clean Pull (speed)",      sets:4, reps:3, pct:0.95, source:"clean" },
+    { lift:"Snatch Balance / OHS",    sets:4, reps:2, pct:0.60, source:"snatch" },
+  ]},
+
+  // WEEK 2 (accumulate - slightly heavier, strength pulls)
+  { week:2, day:1, items:[
+    { lift:"Snatch",                  sets:6, reps:2, pct:0.75, source:"snatch" },
+    { lift:"Snatch Pull (strength)",  sets:4, reps:2, pct:1.05, source:"snatch" },
+    { lift:"Back Squat (volume)",     sets:5, reps:4, pct:0.75, source:"bs" },
+  ]},
+  { week:2, day:2, items:[
+    { lift:"Jerk (rack/blocks)",      sets:6, reps:2, pct:0.76, source:"jerk" },
+    { lift:"Paused Clean (knee)",     sets:5, reps:2, pct:0.73, source:"clean" },
+    { lift:"Push Press",              sets:3, reps:5, pct:0.65, source:"jerk" },
+  ]},
+  { week:2, day:3, items:[
+    { lift:"Clean + Jerk (1+1)",      sets:6, reps:1, pct:0.75, source:"cj_combo" },
+    { lift:"Front Squat (heavy-ish)", sets:5, reps:3, pct:0.78, source:"fs" },
+    { lift:"Clean Pull (strength)",   sets:4, reps:2, pct:1.10, source:"clean" },
+    { lift:"Snatch Balance / OHS",    sets:4, reps:2, pct:0.62, source:"snatch" },
+  ]},
+
+  // WEEK 3 (accumulate → transition to singles + back-offs)
+  { week:3, day:1, items:[
+    { lift:"Snatch (top singles)",       sets:5, reps:1, pct:0.80, source:"snatch", tag:"TOP" },
+    { lift:"Snatch (back-off singles)",  sets:4, reps:1, pct:0.74, source:"snatch", tag:"BACKOFF" },
+    { lift:"Snatch Pull (speed)",        sets:4, reps:3, pct:1.00, source:"snatch" },
+    { lift:"Back Squat (volume)",        sets:5, reps:3, pct:0.80, source:"bs" },
+  ]},
+  { week:3, day:2, items:[
+    { lift:"Jerk (top singles)",         sets:5, reps:1, pct:0.80, source:"jerk",  tag:"TOP" },
+    { lift:"Jerk (back-off singles)",    sets:3, reps:1, pct:0.74, source:"jerk",  tag:"BACKOFF" },
+    { lift:"Clean (top singles)",        sets:5, reps:1, pct:0.78, source:"clean", tag:"TOP" },
+    { lift:"Clean (back-off singles)",   sets:3, reps:1, pct:0.72, source:"clean", tag:"BACKOFF" },
+  ]},
+  { week:3, day:3, items:[
+    { lift:"Clean + Jerk (top singles)",      sets:5, reps:1, pct:0.80, source:"cj_combo", tag:"TOP" },
+    { lift:"Clean + Jerk (back-off singles)", sets:3, reps:1, pct:0.74, source:"cj_combo", tag:"BACKOFF" },
+    { lift:"Front Squat (heavier)",           sets:5, reps:2, pct:0.82, source:"fs" },
+    { lift:"Clean Pull (speed)",              sets:4, reps:3, pct:1.00, source:"clean" },
+    { lift:"OHS (tech)",                      sets:3, reps:3, pct:0.55, source:"snatch" },
+  ]},
+
+  // WEEK 4 (DELOAD / PRIMER)
+  { week:4, day:1, items:[
+    { lift:"Snatch (fast singles)", sets:5, reps:1, pct:0.78, source:"snatch" },
+    { lift:"Back Squat (light)",    sets:3, reps:3, pct:0.70, source:"bs" },
+  ]},
+  { week:4, day:2, items:[
+    { lift:"Jerk (fast singles)",  sets:4, reps:1, pct:0.78, source:"jerk" },
+    { lift:"Clean (fast singles)", sets:4, reps:1, pct:0.76, source:"clean" },
+  ]},
+  { week:4, day:3, items:[
+    { lift:"Clean + Jerk (fast singles)", sets:4, reps:1, pct:0.78, source:"cj_combo" },
+    { lift:"Front Squat (light)",         sets:3, reps:2, pct:0.70, source:"fs" },
+  ]},
+
+  // WEEK 5 (STRENGTH - heavier singles + back-offs)
+  { week:5, day:1, items:[
+    { lift:"Snatch (top singles)",       sets:5, reps:1, pct:0.84, source:"snatch", tag:"TOP" },
+    { lift:"Snatch (back-off singles)",  sets:4, reps:1, pct:0.78, source:"snatch", tag:"BACKOFF" },
+    { lift:"Back Squat (heavy)",         sets:5, reps:3, pct:0.82, source:"bs" },
+    { lift:"Snatch Pull (strength)",     sets:4, reps:2, pct:1.10, source:"snatch" },
+  ]},
+  { week:5, day:2, items:[
+    { lift:"Jerk (top singles)",         sets:5, reps:1, pct:0.84, source:"jerk",  tag:"TOP" },
+    { lift:"Jerk (back-off singles)",    sets:3, reps:1, pct:0.78, source:"jerk",  tag:"BACKOFF" },
+    { lift:"Clean (top singles)",        sets:5, reps:1, pct:0.82, source:"clean", tag:"TOP" },
+    { lift:"Clean (back-off singles)",   sets:3, reps:1, pct:0.76, source:"clean", tag:"BACKOFF" },
+  ]},
+  { week:5, day:3, items:[
+    { lift:"Clean + Jerk (top singles)",      sets:5, reps:1, pct:0.84, source:"cj_combo", tag:"TOP" },
+    { lift:"Clean + Jerk (back-off singles)", sets:3, reps:1, pct:0.78, source:"cj_combo", tag:"BACKOFF" },
+    { lift:"Front Squat (heavy)",             sets:4, reps:2, pct:0.85, source:"fs" },
+    { lift:"Clean Pull (strength)",           sets:4, reps:2, pct:1.12, source:"clean" },
+    { lift:"Snatch Balance",                  sets:3, reps:2, pct:0.60, source:"snatch" },
+  ]},
+
+  // WEEK 6 (STRENGTH - slightly heavier, lower reps)
+  { week:6, day:1, items:[
+    { lift:"Snatch (top singles)",       sets:4, reps:1, pct:0.87, source:"snatch", tag:"TOP" },
+    { lift:"Snatch (back-off singles)",  sets:4, reps:1, pct:0.80, source:"snatch", tag:"BACKOFF" },
+    { lift:"Back Squat (heavy)",         sets:5, reps:2, pct:0.86, source:"bs" },
+    { lift:"Snatch Pull (strength)",     sets:4, reps:2, pct:1.12, source:"snatch" },
+  ]},
+  { week:6, day:2, items:[
+    { lift:"Jerk (top singles)",         sets:4, reps:1, pct:0.87, source:"jerk",  tag:"TOP" },
+    { lift:"Jerk (back-off singles)",    sets:3, reps:1, pct:0.80, source:"jerk",  tag:"BACKOFF" },
+    { lift:"Clean (top singles)",        sets:4, reps:1, pct:0.85, source:"clean", tag:"TOP" },
+    { lift:"Clean (back-off singles)",   sets:3, reps:1, pct:0.78, source:"clean", tag:"BACKOFF" },
+  ]},
+  { week:6, day:3, items:[
+    { lift:"Clean + Jerk (top singles)",      sets:4, reps:1, pct:0.87, source:"cj_combo", tag:"TOP" },
+    { lift:"Clean + Jerk (back-off singles)", sets:3, reps:1, pct:0.80, source:"cj_combo", tag:"BACKOFF" },
+    { lift:"Front Squat (heavy)",             sets:3, reps:1, pct:0.88, source:"fs" },
+    { lift:"Clean Pull (strength)",           sets:4, reps:2, pct:1.15, source:"clean" },
+  ]},
+
+  // WEEK 7 (REALIZATION - low volume, heavy singles)
+  { week:7, day:1, items:[
+    { lift:"Snatch (heavy singles)",         sets:4, reps:1, pct:0.90, source:"snatch", tag:"TOP" },
+    { lift:"Snatch (back-off singles)",      sets:3, reps:1, pct:0.84, source:"snatch", tag:"BACKOFF" },
+    { lift:"Back Squat (single exposure)",   sets:3, reps:1, pct:0.90, source:"bs" },
+  ]},
+  { week:7, day:2, items:[
+    { lift:"Clean + Jerk (heavy singles)",        sets:4, reps:1, pct:0.90, source:"cj_combo", tag:"TOP" },
+    { lift:"Clean + Jerk (back-off singles)",     sets:3, reps:1, pct:0.84, source:"cj_combo", tag:"BACKOFF" },
+  ]},
+  { week:7, day:3, items:[
+    { lift:"Jerk (heavy singles)",           sets:4, reps:1, pct:0.90, source:"jerk", tag:"TOP" },
+    { lift:"Jerk (back-off singles)",        sets:2, reps:1, pct:0.84, source:"jerk", tag:"BACKOFF" },
+    { lift:"Front Squat (single exposure)",  sets:3, reps:1, pct:0.90, source:"fs" },
+  ]},
+
+  // WEEK 8 (PEAK/TEST)
+  { week:8, day:1, items:[
+    { lift:"Snatch (opener practice)",        sets:3, reps:1, pct:0.88, source:"snatch" },
+    { lift:"Clean + Jerk (opener practice)",  sets:3, reps:1, pct:0.88, source:"cj_combo" },
+  ]},
+  { week:8, day:2, items:[
+    { lift:"Snatch (very light)",  sets:3, reps:1, pct:0.70, source:"snatch" },
+    { lift:"Jerk (very light)",    sets:3, reps:1, pct:0.70, source:"jerk" },
+  ]},
+  { week:8, day:3, items:[
+    { lift:"TEST: Snatch (attempts)",       sets:3, reps:1, pct:1.00, source:"snatch",   tag:"TEST" },
+    { lift:"TEST: Clean + Jerk (attempts)", sets:3, reps:1, pct:1.00, source:"cj_combo", tag:"TEST" },
+  ]},
+];
+
+// ─────────────────────────────────────────────────────────────────
+// PLATE DATA
+// ─────────────────────────────────────────────────────────────────
+const LB_PLATES = [55,45,35,25,10,5,2.5];
+const KG_PLATES = [25,20,15,10,5,2.5,1.25];
+const BAR_LB = 45, BAR_KG = 20;
+
+function plateColor(plate, unit) {
+  if(unit==="lb") {
+    if(plate===55) return "p-red";
+    if(plate===45) return "p-blue";
+    if(plate===35) return "p-yellow";
+    if(plate===25) return "p-green";
+    return "p-white";
+  } else {
+    if(plate===25) return "p-red";
+    if(plate===20) return "p-blue";
+    if(plate===15) return "p-yellow";
+    if(plate===10) return "p-green";
+    if(plate===5)  return "p-white";
+    return "p-gray";
+  }
+}
+
+function calcPlates(target, unit) {
+  const bar = unit==="lb" ? BAR_LB : BAR_KG;
+  const plates = unit==="lb" ? LB_PLATES : KG_PLATES;
+  let rem = (target - bar) / 2;
+  if(rem <= 0) return [];
+  const result = [];
+  for(const p of plates) {
+    if(rem <= 0) break;
+    const n = Math.floor(rem / p);
+    if(n > 0) { result.push({plate:p, count:n}); rem -= n*p; }
+  }
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────
+const STORAGE_KEY  = "oly_prog_v3";
+const INPUTS_KEY   = "oly_inputs_v3";
+
+const DEFAULT_STATE = {
+  currentWeek: 1, currentDay: 1, todayMode: true,
+  expandedWeeks: [1],
+  completed: {},   // { "W1-D1": { ts: 123 } }
+  misses: {},      // { "W1-D1-lift_key": count }
+  notes: {},       // { "W1-D1": "text" }
+};
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return {...DEFAULT_STATE};
+    const s = JSON.parse(raw);
+    return { ...DEFAULT_STATE, ...s,
+      expandedWeeks: Array.isArray(s.expandedWeeks) ? s.expandedWeeks : [1],
+      completed: (s.completed && typeof s.completed==="object") ? s.completed : {},
+      misses:    (s.misses    && typeof s.misses==="object")    ? s.misses    : {},
+      notes:     (s.notes     && typeof s.notes==="object")     ? s.notes     : {},
+    };
+  } catch(e) { return {...DEFAULT_STATE}; }
+}
+function saveState(s) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch(e){} }
+
+const INPUT_FIELDS = ["snatch","clean","jerk","bs","fs","unit","inc","tmAll","feel","deload","tm_snatch","tm_clean","tm_jerk","tm_bs","tm_fs"];
+function saveInputs() {
+  const obj = {};
+  INPUT_FIELDS.forEach(id => { const el=document.getElementById(id); if(el) obj[id]=el.value; });
+  try { localStorage.setItem(INPUTS_KEY, JSON.stringify(obj)); } catch(e) {}
+}
+function loadInputs() {
+  try {
+    const raw = localStorage.getItem(INPUTS_KEY);
+    if(!raw) return;
+    const obj = JSON.parse(raw);
+    INPUT_FIELDS.forEach(id => { const el=document.getElementById(id); if(el && obj[id]!==undefined) el.value=obj[id]; });
+  } catch(e) {}
+}
+
+let state = loadState();
+
+// ─────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────
+function num(id) { const n=Number(document.getElementById(id).value); return isFinite(n)?n:0; }
+function val(id) { return document.getElementById(id).value; }
+function roundInc(x, inc) { return Math.round(x/inc)*inc; }
+
+function isTopWork(item) {
+  return item.tag==="TOP" || /opener|heavy.*singles/i.test(item.lift);
+}
+
+function missKey(week, day, liftName) {
+  return `W${week}-D${day}-${liftName.replace(/[^a-zA-Z0-9]/g,'_').toLowerCase()}`;
+}
+
+function getInputs() {
+  const globalTM = Number(val("tmAll"));
+  const perLift = lift => {
+    const v = val(`tm_${lift}`);
+    return (v && v !== "auto") ? Number(v) : globalTM;
+  };
+  return {
+    snatch: num("snatch"), clean: num("clean"), jerk: num("jerk"),
+    bs: num("bs"), fs: num("fs"),
+    unit: val("unit"), inc: num("inc") || (val("unit")==="lb" ? 5 : 2.5),
+    filter: (document.getElementById("filter").value||"").trim().toLowerCase(),
+    tm: globalTM,
+    tmPerLift: { snatch:perLift("snatch"), clean:perLift("clean"), jerk:perLift("jerk"), bs:perLift("bs"), fs:perLift("fs") },
+    feel: val("feel"),
+    deload: val("deload"),
+  };
+}
+
+function computeRows(inp) {
+  const one = {
+    snatch: inp.snatch * inp.tmPerLift.snatch,
+    clean:  inp.clean  * inp.tmPerLift.clean,
+    jerk:   inp.jerk   * inp.tmPerLift.jerk,
+    bs:     inp.bs     * inp.tmPerLift.bs,
+    fs:     inp.fs     * inp.tmPerLift.fs,
+  };
+  const feelAdj = inp.feel==="good" ? 0.025 : inp.feel==="bad" ? -0.05 : 0;
+  const out = [];
+  for(const d of PROGRAM_8W) {
+    for(const it of d.items) {
+      let pct = it.pct;
+      if(isTopWork(it)) pct += feelAdj;
+      let sets = it.sets;
+      if(inp.deload==="on") { pct *= 0.90; sets = Math.max(1, Math.round(sets*0.6)); }
+      let raw = 0, limitedBy = null;
+      if(it.source==="cj_combo") {
+        const cw = (one.clean||0)*pct, jw = (one.jerk||0)*pct;
+        limitedBy = cw <= jw ? "clean" : "jerk";
+        raw = Math.min(cw, jw);
+      } else {
+        const base = {snatch:one.snatch,clean:one.clean,jerk:one.jerk,bs:one.bs,fs:one.fs}[it.source]||0;
+        raw = base * pct;
+      }
+      const w = roundInc(raw, inp.inc);
+      out.push({
+        week:d.week, day:d.day, lift:it.lift, sets, reps:it.reps,
+        pct:Math.round(pct*100), source:it.source, tag:it.tag||"",
+        weight:w, unit:inp.unit, limitedBy,
+        note:(inp.deload==="on"?"DELOAD ":"")+(inp.feel?`FEEL:${inp.feel}`:""),
+      });
+    }
+  }
+  return out;
+}
+
+function getWeekPhase(w) {
+  if(w<=3) return ["ACCUMULATE","phase-acc"];
+  if(w===4) return ["DELOAD","phase-del"];
+  if(w<=6) return ["STRENGTH","phase-str"];
+  if(w===7) return ["REALIZE","phase-rea"];
+  return ["PEAK/TEST","phase-pek"];
+}
+
+// ─────────────────────────────────────────────────────────────────
+// WARMUP RAMP
+// ─────────────────────────────────────────────────────────────────
+function computeWarmups(workWeight, unit, inc) {
+  if(workWeight <= 0) return [];
+  const bar = unit==="lb" ? BAR_LB : BAR_KG;
+  const steps = [{pct:0.40,reps:5},{pct:0.55,reps:3},{pct:0.70,reps:2},{pct:0.85,reps:1}];
+  const result = [];
+  let prev = -1;
+  for(const s of steps) {
+    const w = Math.max(bar, roundInc(workWeight * s.pct, inc));
+    if(w >= workWeight || w === prev) continue;
+    result.push({ weight:w, reps:s.reps });
+    prev = w;
+  }
+  return result;
+}
+
+function renderWarmups(workWeight, unit, inc) {
+  const steps = computeWarmups(workWeight, unit, inc);
+  if(!steps.length) return "";
+  let html = `<div class="warmup-section"><h4>Warmup ramp</h4><div class="warmup-row">`;
+  for(const s of steps) {
+    html += `<div class="warmup-step"><span class="ws-wt">${s.weight}${unit}</span><span class="ws-rep">${s.reps} rep${s.reps>1?"s":""}</span></div><span class="warmup-arrow">→</span>`;
+  }
+  html += `<div class="warmup-step work"><span class="ws-wt">${workWeight}${unit}</span><span class="ws-rep">work</span></div>`;
+  html += `</div></div>`;
+  return html;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// PLATE RENDER
+// ─────────────────────────────────────────────────────────────────
+function renderPlates(weight, unit) {
+  const bar = unit==="lb" ? BAR_LB : BAR_KG;
+  if(weight <= 0) return "";
+  if(weight <= bar) return `<div class="plate-section"><h4>Plates per side</h4><div class="plate-empty">Empty bar — ${bar}${unit}</div></div>`;
+  const plates = calcPlates(weight, unit);
+  if(!plates.length) return "";
+  let html = `<div class="plate-section"><h4>Plates per side (bar = ${bar}${unit})</h4><div class="plate-row">`;
+  html += `<div class="plate-bar">${bar}${unit}</div>`;
+  for(const {plate,count} of plates) {
+    html += `<div class="plate-chip ${plateColor(plate,unit)}"><span class="p-weight">${plate}</span><span class="p-count">×${count}</span></div>`;
+  }
+  html += "</div></div>";
+  return html;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// BUMP ALL 1RMs
+// ─────────────────────────────────────────────────────────────────
+function bumpLifts(direction) {
+  const unit = val("unit");
+  const amt  = direction * (unit === "kg" ? 1.25 : 2.5);
+  ["snatch","clean","jerk","bs","fs"].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    const v = Number(el.value) || 0;
+    if(v > 0) el.value = Math.max(0, v + amt);
+  });
+  saveInputs();
+  renderAll();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────────────────────────
+function renderControls() {
+  const wb = document.getElementById("weekButtons");
+  wb.innerHTML = '<span class="label">W:</span>';
+  for(let w=1;w<=8;w++) {
+    const b = document.createElement("button");
+    b.className = "btn sm"+(state.currentWeek===w?" primary":"");
+    b.textContent = w;
+    b.onclick = ()=>{ state.currentWeek=w; state.currentDay=1; state.todayMode=true; if(!state.expandedWeeks.includes(w)) state.expandedWeeks.push(w); saveState(state); renderAll(); };
+    wb.appendChild(b);
+  }
+  const db = document.getElementById("dayButtons");
+  db.innerHTML = '<span class="label">D:</span>';
+  [1,2,3].forEach(d=>{
+    const b = document.createElement("button");
+    b.className = "btn sm"+(state.todayMode&&state.currentDay===d?" primary":"");
+    b.textContent = d;
+    b.onclick = ()=>{ state.currentDay=d; state.todayMode=true; saveState(state); renderAll(); };
+    db.appendChild(b);
+  });
+  const t = document.getElementById("todayToggle");
+  t.textContent = "Today Mode: "+(state.todayMode?"ON":"OFF");
+  t.className = "btn sm "+(state.todayMode?"primary":"");
+  t.onclick = ()=>{ state.todayMode=!state.todayMode; saveState(state); renderAll(); };
+
+  document.getElementById("currentPill").textContent = `Week ${state.currentWeek} · Day ${state.currentDay}`;
+
+  const feel = val("feel");
+  const fp = document.getElementById("feelPill");
+  fp.textContent = `Readiness: ${feel.toUpperCase()}`;
+  fp.className = "pill"+(feel==="good"?" good":feel==="bad"?" bad":" on");
+
+  const dl = val("deload");
+  const dp = document.getElementById("deloadPill");
+  dp.textContent = `Deload: ${dl.toUpperCase()}`;
+  dp.className = "pill"+(dl==="on"?" on":"");
+
+  document.getElementById("tmPill").textContent = `TM: ${Math.round(Number(val("tmAll"))*100)}%`;
+
+  // Inputs card collapsed summary line
+  const summaryEl = document.getElementById("inputsSummary");
+  if(summaryEl) {
+    const u = val("unit");
+    const parts = [];
+    const s=num("snatch"),c=num("clean"),j=num("jerk"),bs=num("bs"),fs=num("fs");
+    if(s)  parts.push(`S:${s}`);
+    if(c)  parts.push(`C:${c}`);
+    if(j)  parts.push(`J:${j}`);
+    if(bs) parts.push(`BS:${bs}`);
+    if(fs) parts.push(`FS:${fs}`);
+    summaryEl.textContent = parts.length ? parts.join(" · ") + ` ${u}` : "tap to set 1RMs";
+  }
+
+  // Bump button labels track unit
+  const bumpUnit = val("unit")==="kg" ? "1.25 kg" : "2.5 lb";
+  const bUp = document.getElementById("bumpUp");
+  const bDn = document.getElementById("bumpDown");
+  if(bUp) bUp.textContent = `+${bumpUnit}`;
+  if(bDn) bDn.textContent = `−${bumpUnit}`;
+}
+
+function renderProgram() {
+  const inp = getInputs();
+
+  // Show/hide no-1RM hint
+  const hintEl = document.getElementById("no1rmHint");
+  const hasAnyRM = inp.snatch > 0 || inp.clean > 0 || inp.jerk > 0 || inp.bs > 0 || inp.fs > 0;
+  if(hintEl) hintEl.style.display = hasAnyRM ? "none" : "block";
+
+  const rows = computeRows(inp);
+  const filtered = inp.filter
+    ? rows.filter(r=>(`week ${r.week} day ${r.day} ${r.lift} ${r.tag} ${r.sets}x${r.reps} ${r.source}`).toLowerCase().includes(inp.filter))
+    : rows;
+
+  const count = state.todayMode
+    ? filtered.filter(r=>r.week===state.currentWeek&&r.day===state.currentDay).length
+    : filtered.length;
+  document.getElementById("countPill").textContent = `${count} lifts`;
+
+  const weeks = new Map();
+  for(const r of filtered) {
+    if(!weeks.has(r.week)) weeks.set(r.week, new Map());
+    const days = weeks.get(r.week);
+    if(!days.has(r.day)) days.set(r.day, []);
+    days.get(r.day).push(r);
+  }
+  const grouped = [...weeks.entries()].map(([week,daysMap])=>({
+    week, days:[...daysMap.entries()].map(([day,items])=>({day,items})).sort((a,b)=>a.day-b.day)
+  })).sort((a,b)=>a.week-b.week);
+
+  const root = document.getElementById("program");
+  root.innerHTML = "";
+
+  for(const w of grouped) {
+    const det = document.createElement("details");
+    det.className = "week";
+    det.open = state.expandedWeeks.includes(w.week);
+
+    const sum = document.createElement("summary");
+    const [phase, phaseClass] = getWeekPhase(w.week);
+    // Fix: use 'W${w.week}-' (with dash) to avoid W1 matching W10+
+    const wkDone = Object.keys(state.completed).filter(k=>k.startsWith(`W${w.week}-`)).length;
+    sum.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="wk-title">Week ${w.week}</span>
+        <span class="tag ${phaseClass}">${phase}</span>
+      </div>
+      <div class="wk-right"><span class="wk-done">Done ${wkDone}/3</span></div>`;
+    sum.onclick = ()=>setTimeout(()=>{
+      const idx = state.expandedWeeks.indexOf(w.week);
+      if(det.open && idx===-1) state.expandedWeeks.push(w.week);
+      if(!det.open && idx!==-1) state.expandedWeeks.splice(idx,1);
+      saveState(state);
+    },0);
+    det.appendChild(sum);
+
+    for(const d of w.days) {
+      if(state.todayMode && !(w.week===state.currentWeek && d.day===state.currentDay)) continue;
+
+      const key = `W${w.week}-D${d.day}`;
+      const isDone = !!state.completed[key];
+      const tonnage = d.items.reduce((s,it)=>s + it.sets*it.reps*it.weight, 0);
+
+      const dayCard = document.createElement("div");
+      dayCard.className = "day-card";
+
+      // Header
+      const head = document.createElement("div");
+      head.className = "day-head";
+      head.innerHTML = `
+        <div class="day-title">Day ${d.day}</div>
+        <label class="day-done-label">
+          <input type="checkbox" ${isDone?"checked":""} />Done
+        </label>`;
+      const cb = head.querySelector("input");
+      cb.onchange = e => {
+        if(e.target.checked) state.completed[key] = {ts:Date.now()};
+        else delete state.completed[key];
+        saveState(state); renderAll();
+        if(e.target.checked && navigator.vibrate) navigator.vibrate(50);
+        // Auto-advance when day 3 is checked done
+        if(e.target.checked && d.day === 3) {
+          const nextWeek = w.week < 8 ? w.week + 1 : null;
+          setTimeout(() => {
+            if(nextWeek) {
+              if(confirm(`Week ${w.week} complete! Advance to Week ${nextWeek}, Day 1?`)) {
+                state.currentWeek = nextWeek;
+                state.currentDay  = 1;
+                if(!state.expandedWeeks.includes(nextWeek)) state.expandedWeeks.push(nextWeek);
+                saveState(state); renderAll();
+              }
+            } else {
+              // 8-week block done — offer to bump all 1RMs
+              const unit = val("unit");
+              const bumpAmt = unit === "kg" ? "1.25 kg" : "2.5 lb";
+              if(confirm(`🏆 8-week cycle complete! Hit your lifts on test day?\n\nIncrease all 1RMs by ${bumpAmt} for the next block?`)) {
+                bumpLifts(1);
+                alert(`All 1RMs increased by ${bumpAmt}. Start a new block from Week 1!`);
+              } else {
+                alert("🏆 8-week cycle complete! Use the ⬆ bump button in Settings to adjust 1RMs whenever you're ready.");
+              }
+            }
+          }, 200);
+        }
+      };
+
+      // Tonnage meta
+      const meta = document.createElement("div");
+      meta.className = "day-meta";
+      if(tonnage > 0) meta.innerHTML = `<span class="tonnage-chip">~${Math.round(tonnage).toLocaleString()} ${d.items[0].unit} total volume</span>`;
+
+      // Lift list
+      const list = document.createElement("div");
+      list.className = "lift-list";
+
+      for(const it of d.items) {
+        const mk = missKey(w.week, d.day, it.lift);
+        const missCnt = state.misses[mk] || 0;
+        const MAX_MISS = 3;
+        const canMiss = missCnt < MAX_MISS;
+
+        // Apply miss weight reduction (~3% per miss, compounded)
+        const dispWeight = missCnt > 0
+          ? roundInc(it.weight * Math.pow(0.97, missCnt), inp.inc)
+          : it.weight;
+
+        const tagHtml     = it.tag ? `<span class="tag ${it.tag}">${it.tag}</span>` : "";
+        const srcHtml     = `<span class="tag src">${it.source} · ${it.pct}%</span>`;
+        const limitedHtml = it.limitedBy ? `<span class="tag limited">lim: ${it.limitedBy}</span>` : "";
+        const platesHtml  = dispWeight > 0 ? renderPlates(dispWeight, it.unit) : "";
+        const warmupsHtml = dispWeight > 0 ? renderWarmups(dispWeight, it.unit, inp.inc) : "";
+
+        const box = document.createElement("div");
+        box.className = "lift-box"+(isDone?" done-day":"")+(missCnt>0?" has-misses":"");
+        box.innerHTML = `
+          <div class="lift-top">
+            <div class="lift-name">${it.lift}</div>
+            <div class="lift-tags">${tagHtml}${srcHtml}${limitedHtml}</div>
+          </div>
+          <div class="lift-mid">${it.sets} × ${it.reps}</div>
+          <div class="lift-wt">
+            ${dispWeight > 0 ? dispWeight : "—"}<span class="unit">${it.unit}</span>
+            ${missCnt > 0 ? `<span class="orig">${it.weight}${it.unit}</span>` : ""}
+          </div>
+          ${missCnt > 0 ? `<div class="miss-info">⚠ ${missCnt} miss${missCnt>1?"es":""} — weight reduced</div>` : ""}
+          <div class="lift-actions">
+            <button class="btn miss${!canMiss?" maxed":""}" data-mk="${mk}">${missCnt>0?`Miss (${missCnt}/${MAX_MISS})`:"Miss"}</button>
+            ${missCnt > 0 ? `<button class="btn sm" style="font-size:0.68rem;padding:3px 7px;" data-clr="${mk}">Clear</button>` : ""}
+          </div>
+          ${platesHtml}
+          ${warmupsHtml}`;
+
+        const missBtn = box.querySelector(`[data-mk="${mk}"]`);
+        if(missBtn && canMiss) {
+          missBtn.onclick = () => {
+            state.misses[mk] = (state.misses[mk]||0) + 1;
+            saveState(state);
+            if(navigator.vibrate) navigator.vibrate(30);
+            renderAll();
+          };
+        }
+        const clrBtn = box.querySelector(`[data-clr="${mk}"]`);
+        if(clrBtn) {
+          clrBtn.onclick = () => { delete state.misses[mk]; saveState(state); renderAll(); };
+        }
+
+        list.appendChild(box);
+      }
+
+      // Session notes
+      const notesArea = document.createElement("textarea");
+      notesArea.className = "notes-area";
+      notesArea.placeholder = "Session notes (feel, misses, PRs…)";
+      notesArea.value = state.notes[key] || "";
+      notesArea.addEventListener("input", () => {
+        state.notes[key] = notesArea.value;
+        saveState(state);
+      });
+
+      dayCard.appendChild(head);
+      if(tonnage > 0) dayCard.appendChild(meta);
+      dayCard.appendChild(list);
+      dayCard.appendChild(notesArea);
+
+      det.appendChild(dayCard);
+    }
+    root.appendChild(det);
+  }
+}
+
+function renderHistory() {
+  const keys = Object.keys(state.completed).sort();
+  const el = document.getElementById("history");
+  if(!keys.length) { el.innerHTML = '<div class="history-empty">No completed sessions yet.</div>'; return; }
+  el.innerHTML = keys.map(k=>{
+    const v   = state.completed[k];
+    const ts  = v && v.ts ? new Date(v.ts).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}) : "—";
+    const note = state.notes[k] ? `<div class="history-note">${state.notes[k].substring(0,100)}${state.notes[k].length>100?"…":""}</div>` : "";
+    return `<div class="history-item">
+      <div class="history-key">${k.replace("W","Week ").replace("-D"," · Day ")}</div>
+      <div class="history-date">${ts}</div>
+      ${note}
+    </div>`;
+  }).join("");
+}
+
+function renderAll() { renderControls(); renderProgram(); renderHistory(); }
+
+// ─────────────────────────────────────────────────────────────────
+// CSV EXPORT — includes 1RM metadata header
+// ─────────────────────────────────────────────────────────────────
+function toCSV(rows, inp) {
+  const meta = [
+    `# Oly Program Export — ${new Date().toLocaleDateString()}`,
+    `# Snatch 1RM: ${inp.snatch}${inp.unit}   Clean 1RM: ${inp.clean}${inp.unit}   Jerk 1RM: ${inp.jerk}${inp.unit}`,
+    `# Back Squat 1RM: ${inp.bs}${inp.unit}   Front Squat 1RM: ${inp.fs}${inp.unit}`,
+    `# Global TM: ${Math.round(inp.tm*100)}%   Readiness: ${inp.feel}   Deload: ${inp.deload}`,
+    `#`,
+  ];
+  const h = ["week","day","lift","sets","reps","pct","source","tag","weight","unit","limited_by","note"];
+  const lines = [...meta, h.join(",")];
+  for(const r of rows) lines.push([r.week,r.day,JSON.stringify(r.lift),r.sets,r.reps,r.pct,r.source,JSON.stringify(r.tag||""),r.weight,r.unit,r.limitedBy||"",JSON.stringify(r.note||"")].join(","));
+  return lines.join("\n");
+}
+function download(name, text) {
+  const a = Object.assign(document.createElement("a"),{href:URL.createObjectURL(new Blob([text],{type:"text/csv"})),download:name});
+  document.body.appendChild(a); a.click(); a.remove();
+}
+document.getElementById("exportCsv").onclick = ()=>{ const inp=getInputs(); download("oly_program.csv",toCSV(computeRows(inp),inp)); };
+document.getElementById("resetProgress").onclick = ()=>{
+  if(!confirm("Reset week/day tracking, completed checkmarks, misses, and notes?")) return;
+  state = {...DEFAULT_STATE}; saveState(state); renderAll();
+};
+
+// ─────────────────────────────────────────────────────────────────
+// WIRE INPUTS (render + save on change)
+// ─────────────────────────────────────────────────────────────────
+["snatch","clean","jerk","bs","fs","unit","inc","filter","tmAll","feel","deload",
+ "tm_snatch","tm_clean","tm_jerk","tm_bs","tm_fs"].forEach(id=>{
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.addEventListener("input",  () => { saveInputs(); renderAll(); });
+  el.addEventListener("change", () => { saveInputs(); renderAll(); });
+});
+
+// Bump 1RM buttons
+document.getElementById("bumpUp").onclick   = () => bumpLifts(1);
+document.getElementById("bumpDown").onclick = () => bumpLifts(-1);
+
+// Per-lift TM arrow toggle
+document.getElementById("perLiftDetails").addEventListener("toggle", function() {
+  document.getElementById("perLiftArrow").textContent = this.open ? "▼" : "▶";
+});
+
+// Inputs card collapse arrow
+document.getElementById("inputsCard").addEventListener("toggle", function() {
+  document.getElementById("inputsArrow").textContent = this.open ? "▼" : "▶";
+});
+
+// ─────────────────────────────────────────────────────────────────
+// AUDIBLE BEEP (Web Audio API — no file needed)
+// ─────────────────────────────────────────────────────────────────
+function playBeep(freq, duration, vol=0.25) {
+  try {
+    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = freq;
+    osc.type = "sine";
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration + 0.05);
+  } catch(e) {}
+}
+function playDoneChime() {
+  // Three ascending tones
+  setTimeout(()=>playBeep(660, 0.18), 0);
+  setTimeout(()=>playBeep(880, 0.18), 200);
+  setTimeout(()=>playBeep(1100, 0.35), 400);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// REST TIMER
+// ─────────────────────────────────────────────────────────────────
+let timerTotal=120, timerLeft=120, timerInterval=null, timerRunning=false;
+
+function fmtTime(s) { return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
+
+function setTimer(s) {
+  resetTimer();
+  timerTotal = s; timerLeft = s;
+  document.getElementById("timerDisplay").textContent = fmtTime(s);
+  document.getElementById("timerDisplay").className = "timer-display";
+}
+function setCustomTimer() {
+  const v = Number(document.getElementById("customTimerSec").value);
+  if(v >= 10 && v <= 900) setTimer(v);
+}
+
+function toggleTimer() {
+  if(timerRunning) {
+    clearInterval(timerInterval); timerRunning = false;
+    document.getElementById("timerStartBtn").textContent = "Start";
+    document.getElementById("timerFabBtn").className = "timer-btn-main";
+  } else {
+    timerRunning = true;
+    document.getElementById("timerStartBtn").textContent = "Pause";
+    document.getElementById("timerFabBtn").className = "timer-btn-main running";
+    timerInterval = setInterval(()=>{
+      timerLeft--;
+      document.getElementById("timerDisplay").textContent = fmtTime(timerLeft);
+      if(timerLeft <= 0) {
+        clearInterval(timerInterval); timerRunning = false;
+        document.getElementById("timerDisplay").textContent = "Done!";
+        document.getElementById("timerDisplay").className = "timer-display done";
+        document.getElementById("timerStartBtn").textContent = "Start";
+        document.getElementById("timerFabBtn").className = "timer-btn-main";
+        if(navigator.vibrate) navigator.vibrate([200,100,200]);
+        playDoneChime();
+      }
+    }, 1000);
+  }
+}
+
+function resetTimer() {
+  clearInterval(timerInterval); timerRunning = false; timerLeft = timerTotal;
+  document.getElementById("timerDisplay").textContent = fmtTime(timerLeft);
+  document.getElementById("timerDisplay").className = "timer-display";
+  document.getElementById("timerStartBtn").textContent = "Start";
+  document.getElementById("timerFabBtn").className = "timer-btn-main";
+}
+
+function toggleTimerPopup() { document.getElementById("timerPopup").classList.toggle("open"); }
+
+document.addEventListener("click", e=>{
+  const fab = document.getElementById("timer-fab");
+  if(!fab.contains(e.target)) document.getElementById("timerPopup").classList.remove("open");
+});
+
+// ─────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────
+loadInputs();
+renderAll();
+</script>
 </body>
 </html>
