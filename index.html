@@ -190,17 +190,19 @@
     /* ── No-1RM hint ──────────────────────────────────────────── */
     .no-1rm-hint { display:none; background: var(--gold-dim); border: 1px solid var(--gold); border-radius: 8px; padding: 14px 18px; text-align: center; font-size: 0.88rem; font-weight: 700; color: var(--gold); margin-bottom: 14px; }
 
-    /* ── Inputs card collapsible ─────────────────────────────── */
-    details.inputs-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; }
-    details.inputs-card > summary { padding: 14px 18px; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; user-select: none; border-radius: var(--radius); }
-    details.inputs-card > summary::-webkit-details-marker { display: none; }
-    details.inputs-card > summary:hover { background: var(--surface2); }
-    details.inputs-card[open] > summary { border-bottom: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; }
-    .inputs-summary-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .inputs-summary-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-    .inputs-summary-vals { font-size: 0.78rem; color: var(--text); font-weight: 600; }
-    .inputs-summary-arrow { font-size: 0.75rem; color: var(--muted); flex-shrink: 0; }
-    .inputs-body { padding: 18px; }
+    /* ── Mentzer Heavy Duty Supplementals ──────────────────────── */
+    .mentzer-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .mentzer-section h4 { font-size: 0.72rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; }
+    .mentzer-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .mentzer-card { flex: 1; min-width: 140px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+    .mentzer-card.done-day { opacity: .45; }
+    .mentzer-name { font-weight: 700; font-size: 0.88rem; margin-bottom: 4px; }
+    .mentzer-wt { font-size: 1.15rem; font-weight: 900; color: var(--gold); }
+    .mentzer-wt .unit { font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-left: 2px; }
+    .mentzer-note { font-size: 0.7rem; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+    .mentzer-bump { margin-top: 8px; }
+    .mentzer-bump .btn { font-size: 0.7rem; padding: 4px 10px; }
+
     /* ── Bump 1RM row ─────────────────────────────────────────── */
     .bump-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--border); margin-top: 6px; }
     .bump-label { font-size: 0.72rem; color: var(--muted); font-weight: 600; flex: 1; min-width: 120px; }
@@ -221,15 +223,8 @@
   </div>
 
   <!-- ── Inputs Card ──────────────────────────────────────────── -->
-  <details class="inputs-card" id="inputsCard" open>
-    <summary>
-      <div class="inputs-summary-left">
-        <span class="inputs-summary-title">⚙ Settings &amp; 1RMs</span>
-        <span id="inputsSummary" class="inputs-summary-vals"></span>
-      </div>
-      <span id="inputsArrow" class="inputs-summary-arrow">▼</span>
-    </summary>
-    <div class="inputs-body">
+  <div class="card">
+    <div class="card-title">⚙ Settings &amp; 1RMs</div>
     <div class="row">
       <label>Snatch 1RM <input id="snatch" type="number" step="1" placeholder="0" /></label>
       <label>Clean 1RM  <input id="clean"  type="number" step="1" placeholder="0" /></label>
@@ -238,6 +233,11 @@
     <div class="row">
       <label>Back Squat 1RM <input id="bs" type="number" step="1" placeholder="0" /></label>
       <label>Front Squat 1RM<input id="fs" type="number" step="1" placeholder="0" /></label>
+    </div>
+
+    <div class="row">
+      <label>Pull-up Weight <input id="pugwt" type="number" step="0.5" placeholder="0" /></label>
+      <label>Dip Weight <input id="dipwt" type="number" step="0.5" placeholder="0" /></label>
     </div>
 
     <div class="row">
@@ -366,8 +366,7 @@
       <button class="btn sm" id="exportCsv">Export CSV</button>
       <button class="btn sm danger" id="resetProgress">Reset progress</button>
     </div>
-    </div><!-- /inputs-body -->
-  </details>
+  </div>
 
   <!-- ── Program Card ─────────────────────────────────────────── -->
   <div class="card">
@@ -625,7 +624,7 @@ function loadState() {
 }
 function saveState(s) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch(e){} }
 
-const INPUT_FIELDS = ["snatch","clean","jerk","bs","fs","unit","inc","tmAll","feel","deload","tm_snatch","tm_clean","tm_jerk","tm_bs","tm_fs"];
+const INPUT_FIELDS = ["snatch","clean","jerk","bs","fs","pugwt","dipwt","unit","inc","tmAll","feel","deload","tm_snatch","tm_clean","tm_jerk","tm_bs","tm_fs"];
 function saveInputs() {
   const obj = {};
   INPUT_FIELDS.forEach(id => { const el=document.getElementById(id); if(el) obj[id]=el.value; });
@@ -666,6 +665,7 @@ function getInputs() {
   return {
     snatch: num("snatch"), clean: num("clean"), jerk: num("jerk"),
     bs: num("bs"), fs: num("fs"),
+    pugwt: num("pugwt"), dipwt: num("dipwt"),
     unit: val("unit"), inc: num("inc") || (val("unit")==="lb" ? 5 : 2.5),
     filter: (document.getElementById("filter").value||"").trim().toLowerCase(),
     tm: globalTM,
@@ -751,6 +751,47 @@ function renderWarmups(workWeight, unit, inc) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// MENTZER HEAVY DUTY SUPPLEMENTALS
+// ─────────────────────────────────────────────────────────────────
+function bumpMentzer(id) {
+  const el = document.getElementById(id);
+  if(!el) return;
+  const unit = val("unit");
+  const amt = unit === "kg" ? 1.25 : 2.5;
+  el.value = Math.max(0, (Number(el.value)||0) + amt);
+  saveInputs();
+  renderAll();
+}
+
+function renderMentzerSection(inp, isDone) {
+  if(inp.pugwt <= 0 && inp.dipwt <= 0) return "";
+  const doneClass = isDone ? " done-day" : "";
+  const u = inp.unit;
+  const bumpLabel = u === "kg" ? "+1.25kg" : "+2.5lb";
+  let html = `<div class="mentzer-section"><h4>💪 Heavy Duty Supplementals</h4><div class="mentzer-row">`;
+
+  if(inp.pugwt > 0) {
+    html += `<div class="mentzer-card${doneClass}">
+      <div class="mentzer-name">Weighted Pull-ups</div>
+      <div class="mentzer-wt">${inp.pugwt}<span class="unit">${u}</span></div>
+      <div class="mentzer-note">1 set to failure · Add weight at 10 reps</div>
+      <div class="mentzer-bump"><button class="btn sm gold mentzer-btn" data-mentzer="pugwt">Hit 10 → ${bumpLabel}</button></div>
+    </div>`;
+  }
+  if(inp.dipwt > 0) {
+    html += `<div class="mentzer-card${doneClass}">
+      <div class="mentzer-name">Weighted Dips</div>
+      <div class="mentzer-wt">${inp.dipwt}<span class="unit">${u}</span></div>
+      <div class="mentzer-note">1 set to failure · Add weight at 10 reps</div>
+      <div class="mentzer-bump"><button class="btn sm gold mentzer-btn" data-mentzer="dipwt">Hit 10 → ${bumpLabel}</button></div>
+    </div>`;
+  }
+
+  html += `</div></div>`;
+  return html;
+}
+
+// ─────────────────────────────────────────────────────────────────
 // PLATE RENDER
 // ─────────────────────────────────────────────────────────────────
 function renderPlates(weight, unit) {
@@ -825,20 +866,6 @@ function renderControls() {
 
   document.getElementById("tmPill").textContent = `TM: ${Math.round(Number(val("tmAll"))*100)}%`;
 
-  // Inputs card collapsed summary line
-  const summaryEl = document.getElementById("inputsSummary");
-  if(summaryEl) {
-    const u = val("unit");
-    const parts = [];
-    const s=num("snatch"),c=num("clean"),j=num("jerk"),bs=num("bs"),fs=num("fs");
-    if(s)  parts.push(`S:${s}`);
-    if(c)  parts.push(`C:${c}`);
-    if(j)  parts.push(`J:${j}`);
-    if(bs) parts.push(`BS:${bs}`);
-    if(fs) parts.push(`FS:${fs}`);
-    summaryEl.textContent = parts.length ? parts.join(" · ") + ` ${u}` : "tap to set 1RMs";
-  }
-
   // Bump button labels track unit
   const bumpUnit = val("unit")==="kg" ? "1.25 kg" : "2.5 lb";
   const bUp = document.getElementById("bumpUp");
@@ -880,9 +907,12 @@ function renderProgram() {
   root.innerHTML = "";
 
   for(const w of grouped) {
+    // In Today Mode, skip entire weeks that don't contain the current day
+    if(state.todayMode && w.week !== state.currentWeek) continue;
+
     const det = document.createElement("details");
     det.className = "week";
-    det.open = state.expandedWeeks.includes(w.week);
+    det.open = state.todayMode ? true : state.expandedWeeks.includes(w.week);
 
     const sum = document.createElement("summary");
     const [phase, phaseClass] = getWeekPhase(w.week);
@@ -1015,6 +1045,18 @@ function renderProgram() {
         list.appendChild(box);
       }
 
+      // Mentzer Heavy Duty Supplementals
+      const mentzerHtml = renderMentzerSection(inp, isDone);
+      let mentzerDiv = null;
+      if(mentzerHtml) {
+        mentzerDiv = document.createElement("div");
+        mentzerDiv.innerHTML = mentzerHtml;
+        // Wire up bump buttons
+        mentzerDiv.querySelectorAll(".mentzer-btn").forEach(btn => {
+          btn.onclick = () => bumpMentzer(btn.dataset.mentzer);
+        });
+      }
+
       // Session notes
       const notesArea = document.createElement("textarea");
       notesArea.className = "notes-area";
@@ -1028,6 +1070,7 @@ function renderProgram() {
       dayCard.appendChild(head);
       if(tonnage > 0) dayCard.appendChild(meta);
       dayCard.appendChild(list);
+      if(mentzerDiv) dayCard.appendChild(mentzerDiv);
       dayCard.appendChild(notesArea);
 
       det.appendChild(dayCard);
@@ -1083,7 +1126,7 @@ document.getElementById("resetProgress").onclick = ()=>{
 // ─────────────────────────────────────────────────────────────────
 // WIRE INPUTS (render + save on change)
 // ─────────────────────────────────────────────────────────────────
-["snatch","clean","jerk","bs","fs","unit","inc","filter","tmAll","feel","deload",
+["snatch","clean","jerk","bs","fs","pugwt","dipwt","unit","inc","filter","tmAll","feel","deload",
  "tm_snatch","tm_clean","tm_jerk","tm_bs","tm_fs"].forEach(id=>{
   const el = document.getElementById(id);
   if(!el) return;
@@ -1098,11 +1141,6 @@ document.getElementById("bumpDown").onclick = () => bumpLifts(-1);
 // Per-lift TM arrow toggle
 document.getElementById("perLiftDetails").addEventListener("toggle", function() {
   document.getElementById("perLiftArrow").textContent = this.open ? "▼" : "▶";
-});
-
-// Inputs card collapse arrow
-document.getElementById("inputsCard").addEventListener("toggle", function() {
-  document.getElementById("inputsArrow").textContent = this.open ? "▼" : "▶";
 });
 
 // ─────────────────────────────────────────────────────────────────
